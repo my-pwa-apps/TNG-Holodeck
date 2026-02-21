@@ -156,11 +156,11 @@ function buildWalls(mats) {
   bands.instanceMatrix.needsUpdate = true;
   g.add(bands);
 
-  // Vertical accent panels (InstancedMesh — 12 instances)
+  // Vertical accent panels (InstancedMesh — 16 instances)
   const panelGeo = new THREE.BoxGeometry(0.055, wallHeight * 0.88, 0.1);
-  const panels   = new THREE.InstancedMesh(panelGeo, mats.wallPanel, 12);
-  for (let i = 0; i < 12; i++) {
-    const angle = (i / 12) * Math.PI * 2;
+  const panels   = new THREE.InstancedMesh(panelGeo, mats.wallPanel, 16);
+  for (let i = 0; i < 16; i++) {
+    const angle = (i / 16) * Math.PI * 2;
     _obj.position.set(
       Math.sin(angle) * (radius - 0.05),
       wallHeight / 2,
@@ -176,9 +176,9 @@ function buildWalls(mats) {
   return g;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════════════
 //  CEILING DOME
-// ═══════════════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════════════
 
 function buildCeiling(mats, resources) {
   const g = new THREE.Group();
@@ -203,7 +203,7 @@ function buildCeiling(mats, resources) {
   const panelMat = new THREE.MeshStandardMaterial({
     color: 0xFFFFFF,
     emissive: new THREE.Color(P.domeGlow),
-    emissiveIntensity: 2.4,
+    emissiveIntensity: 3.2,
     roughness: 0.35,
   });
   resources.ceilLightMat = panelMat;
@@ -241,47 +241,52 @@ function buildCeiling(mats, resources) {
     g.add(panel);
   });
 
-  // ── Radial spoke ribs (InstancedMesh — 8 spokes, tan/gold) ──────────
-  //   A thin ridge box oriented along +X, rotated Y to each spoke angle,
-  //   tilted X to follow the dome's shallow curvature at its midpoint.
-  const SPOKES   = 8;
-  const spokeLen = radius * 0.90;   // from near-center out to near-wall
-  const spokeGeo = new THREE.BoxGeometry(spokeLen, 0.08, 0.13);
-  const spokeInst = new THREE.InstancedMesh(spokeGeo, domeRibMat, SPOKES);
-
-  const midR  = spokeLen / 2;
-  const midY  = yc + Math.sqrt(Math.max(0, R * R - midR * midR));
-  const tiltA = Math.asin(Math.min(midR / R, 1.0));   // dome slope at midpoint
+  // ── Curved dome-following radial ribs (InstancedMesh — 8 spokes) ─────
+  //   Each rib is a CatmullRomCurve3 sampled along the dome sphere surface
+  //   from the inner concentric ring to the outer concentric ring.
+  //   Local space: points at (0, worldY, r) along +Z — instanced with
+  //   rotation.y per spoke so they fan out correctly around the dome.
+  const SPOKES = 8;
+  const rInner = 1.45;   // just outside inner rib ring
+  const rOuter = 5.10;   // just inside outer rib ring
+  const nPts   = 8;
+  const ribPts = [];
+  for (let i = 0; i < nPts; i++) {
+    const r = rInner + (rOuter - rInner) * (i / (nPts - 1));
+    const y = yc + Math.sqrt(Math.max(0, R * R - r * r));
+    ribPts.push(new THREE.Vector3(0, y, r));
+  }
+  const ribCurve = new THREE.CatmullRomCurve3(ribPts, false, 'catmullrom', 0.25);
+  const ribGeo   = new THREE.TubeGeometry(ribCurve, 32, 0.07, 8, false);
+  const ribInst  = new THREE.InstancedMesh(ribGeo, domeRibMat, SPOKES);
 
   for (let s = 0; s < SPOKES; s++) {
     const angle = (s / SPOKES) * Math.PI * 2;
-    _obj.position.set(
-      Math.cos(angle) * midR,
-      midY,
-      Math.sin(angle) * midR,
-    );
-    // XYZ Euler intrinsic: tilt X, then spin Y — maps +X to radial+slope direction
-    _obj.rotation.set(tiltA, -angle, 0);
+    _obj.position.set(0, 0, 0);
+    _obj.rotation.set(0, angle, 0);
     _obj.scale.setScalar(1);
     _obj.updateMatrix();
-    spokeInst.setMatrixAt(s, _obj.matrix);
+    ribInst.setMatrixAt(s, _obj.matrix);
   }
-  spokeInst.instanceMatrix.needsUpdate = true;
-  g.add(spokeInst);
+  ribInst.instanceMatrix.needsUpdate = true;
+  g.add(ribInst);
 
-  // ── Outer wall trim ring at dome base ─────────────────────────────────
-  const wallRingMat = new THREE.MeshStandardMaterial({
-    color: P.domeRib,
-    emissive: new THREE.Color(P.domeGlow),
-    emissiveIntensity: 0.7,
-    roughness: 0.5,
-  });
+  // ── Dark oculus circle at dome apex (reference photo — dark centre hole) ─
+  const oculusGeo = new THREE.CircleGeometry(1.35, segments);
+  oculusGeo.rotateX(-Math.PI / 2);
+  const oculus    = new THREE.Mesh(oculusGeo, makeMat(0x060608, { roughness: 0.9 }));
+  oculus.position.y = yc + Math.sqrt(Math.max(0, R * R - 1.35 * 1.35)) + 0.01;
+  g.add(oculus);
+
+  // ── Outer wall trim ring at dome base — dark charcoal separator ────────
+  //   In the reference photo this ring is a distinct dark band (no glow).
+  const wallRingMat = makeMat(0x1A1814, { roughness: 0.6 });
   const wallRing = new THREE.Mesh(
-    new THREE.TorusGeometry(radius - 0.02, 0.09, 10, segments),
+    new THREE.TorusGeometry(radius - 0.02, 0.12, 10, segments),
     wallRingMat,
   );
   wallRing.rotation.x = Math.PI / 2;
-  wallRing.position.y = wallHeight + 0.05;
+  wallRing.position.y = wallHeight + 0.06;
   g.add(wallRing);
 
   return g;
@@ -698,23 +703,23 @@ function buildDoors(mats) {
 function buildLighting(root, resources) {
   // Hemisphere — the TNG bridge is very bright and warm:
   //   bright warm-white sky, very dim warm-brown ground
-  const hemi = new THREE.HemisphereLight(0xFFF8F0, 0x2A1E14, 1.4);
+  const hemi = new THREE.HemisphereLight(0xFFF8F0, 0x2A1E14, 1.6);
   root.add(hemi);
 
   // Central dome point — primary key light (warm white)
-  const dome = new THREE.PointLight(0xFFF4E8, 3.2, 24);
+  const dome = new THREE.PointLight(0xFFF4E8, 3.8, 26);
   dome.position.set(0, BRIDGE.room.domeApex - 0.4, 0);
   root.add(dome);
   resources.accentLights.push(dome);
 
   // Forward fill toward viewscreen (slight cool-blue from screen)
-  const fwd = new THREE.PointLight(0xBBCCDD, 0.8, 16);
+  const fwd = new THREE.PointLight(0xBBCCDD, 0.9, 16);
   fwd.position.set(0, 3.2, -4.5);
   root.add(fwd);
   resources.accentLights.push(fwd);
 
   // Aft fill
-  const aft = new THREE.PointLight(0xFFE8C8, 0.7, 14);
+  const aft = new THREE.PointLight(0xFFE8C8, 0.8, 14);
   aft.position.set(0, 2.8, 4.5);
   root.add(aft);
   resources.accentLights.push(aft);
