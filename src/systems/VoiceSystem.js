@@ -74,6 +74,13 @@ export class VoiceSystem {
       return;
     }
 
+    // "Computer, red alert" — toggle red alert on bridge scene
+    if (/computer,?\s*red\s+alert/.test(text)) {
+      this.engine._currentSceneModule?.activateRedAlert?.();
+      this.engine.audio.play('computer_ack');
+      return;
+    }
+
     // "Computer, end program"
     if (/computer,?\s*end\s+program/.test(text)) {
       this.engine.audio.play('holodeck_door');

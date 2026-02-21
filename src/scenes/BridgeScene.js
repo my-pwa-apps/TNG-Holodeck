@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+const CANVAS_UPDATE_INTERVAL   = 0.05;  // throttle canvas texture uploads to ~20fps
+const RED_ALERT_PULSE_FREQUENCY = 4.0;  // Hz — red alert light pulse rate
+
 /**
  * BridgeScene — TNG Starship Bridge with LCARS consoles,
  * animated viewscreen starfield, and warp support.
@@ -305,6 +308,134 @@ export class BridgeScene {
     }
   }
 
+  // ── Hull geometry ────────────────────────────────────────────────────────
+
+  /** Cylindrical bridge hull wall with turbolift door detail at rear. */
+  _buildWalls() {
+    const group   = new THREE.Group();
+    const hullMat = new THREE.MeshStandardMaterial({ color: 0x1c1c2e, roughness: 0.6, metalness: 0.2 });
+
+    // Full cylindrical hull rendered on the inside (BackSide)
+    const wallGeo = new THREE.CylinderGeometry(7.8, 7.8, 3.4, 32, 1, true);
+    const wall    = new THREE.Mesh(wallGeo, hullMat.clone());
+    wall.material.side = THREE.BackSide;
+    wall.position.y = 1.7;
+    group.add(wall);
+
+    // Rear turbolift door (centre back)
+    const doorMat = new THREE.MeshStandardMaterial({ color: 0x0a0a1a, roughness: 0.4 });
+    const door    = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.2, 0.08), doorMat);
+    door.position.set(0, 1.1, 7.7);
+    group.add(door);
+
+    // Amber door frame trim
+    const trimMat = new THREE.MeshStandardMaterial({
+      color: 0xFF9900, emissive: new THREE.Color(0xFF9900), emissiveIntensity: 0.4, roughness: 0.3,
+    });
+    [-0.65, 0.65].forEach(x => {
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.2, 0.1), trimMat);
+      trim.position.set(x, 1.1, 7.7);
+      group.add(trim);
+    });
+
+    return group;
+  }
+
+  /** Ceiling disc with TNG ambient lighting ring (changes colour on red alert). */
+  _buildCeiling() {
+    const group   = new THREE.Group();
+    const ceilMat = new THREE.MeshStandardMaterial({ color: 0x111122, roughness: 0.5 });
+
+    const ceiling = new THREE.Mesh(new THREE.CircleGeometry(7.5, 32), ceilMat);
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.y = 3.2;
+    group.add(ceiling);
+
+    // Ambient ring — colour-shifts on red alert
+    this._ceilLightMat = new THREE.MeshStandardMaterial({
+      color: 0x3366AA, emissive: new THREE.Color(0x3366AA), emissiveIntensity: 0.8, roughness: 0.3,
+    });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(3.5, 0.09, 8, 48), this._ceilLightMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 3.05;
+    group.add(ring);
+
+    // Central recessed lighting panel
+    const panMat = new THREE.MeshStandardMaterial({
+      color: 0x334466, emissive: new THREE.Color(0x334466), emissiveIntensity: 0.5,
+    });
+    const centrePanel = new THREE.Mesh(new THREE.CircleGeometry(1.2, 16), panMat);
+    centrePanel.rotation.x = Math.PI / 2;
+    centrePanel.position.y = 3.15;
+    group.add(centrePanel);
+
+    return group;
+  }
+
+  /** Conn/Helm station — twin forward console in front of the captain's chair. */
+  _buildConnStation() {
+    const group  = new THREE.Group();
+    const panMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.5 });
+
+    const conn = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.85, 0.75), panMat);
+    conn.position.set(0, 0.425, -0.5);
+    group.add(conn);
+
+    // Angled top surface
+    const surfMat = new THREE.MeshStandardMaterial({ color: 0x0d0d1e, roughness: 0.4 });
+    const surf    = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.7), surfMat);
+    surf.rotation.x = -0.6;
+    surf.position.set(0, 0.88, -0.52);
+    group.add(surf);
+
+    const screen = this._buildLCARSScreen(1.6, 0.65, 'CONN / HELM');
+    screen.position.set(0, 1.05, -0.5);
+    screen.rotation.x = -0.55;
+    group.add(screen);
+    this._lcarsScreens.push(screen._lcarsData);
+
+    return group;
+  }
+
+  /** Tactical station — raised console at rear of bridge behind captain's chair. */
+  _buildTacticalStation() {
+    const group  = new THREE.Group();
+    const panMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.5 });
+
+    // Raised platform
+    const base = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.15, 1.2), panMat);
+    base.position.set(0, 0.075, 3.2);
+    group.add(base);
+
+    const housing = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.1, 0.9), panMat);
+    housing.position.set(0, 0.625, 3.2);
+    group.add(housing);
+
+    const screen = this._buildLCARSScreen(2.2, 0.75, 'TACTICAL SYS');
+    screen.position.set(0, 1.28, 3.2);
+    screen.rotation.x = -0.5;
+    group.add(screen);
+    this._lcarsScreens.push(screen._lcarsData);
+
+    return group;
+  }
+
+  // ── Red alert ────────────────────────────────────────────────────────────
+
+  /** Toggle red alert mode — pulses lights red, resets on second call. */
+  activateRedAlert() {
+    this._redAlertMode = !this._redAlertMode;
+    if (!this._redAlertMode) {
+      // Reset to normal
+      this._redAlertTime = 0;
+      this._accentLights.forEach(l => { l.color.set(0xFF9900); l.intensity = 1.5; });
+      if (this._ceilLightMat) {
+        this._ceilLightMat.emissive.set(0x3366AA);
+        this._ceilLightMat.emissiveIntensity = 0.8;
+      }
+    }
+  }
+
   activateWarp() {
     this._warpActive   = true;
     this._warpProgress = 0;
@@ -320,20 +451,29 @@ export class BridgeScene {
       else o.material?.dispose();
     });
     this._starTex?.dispose();
+    // Dispose canvas textures created by _buildLCARSScreen
+    this._lcarsScreens.forEach(d => d.tex?.dispose());
   }
 
   getObjects() { return [this._root]; }
 
   update(dt, elapsed) {
+    // Throttle canvas redraws to ~20fps to reduce GPU texture upload cost
+    this._starUpdateAccum += dt;
+    const shouldRedraw = this._starUpdateAccum >= CANVAS_UPDATE_INTERVAL;
+    if (shouldRedraw) this._starUpdateAccum = 0;
+
     // Animate LCARS screens
     this._lcarsScreens.forEach(d => {
       d.t += dt;
-      this._drawLCARS(d.ctx, d.canvas.width, d.canvas.height, d.t);
-      d.tex.needsUpdate = true;
+      if (shouldRedraw) {
+        this._drawLCARS(d.ctx, d.canvas.width, d.canvas.height, d.t);
+        d.tex.needsUpdate = true;
+      }
     });
 
     // Animate viewscreen
-    if (this._starTex) {
+    if (this._starTex && shouldRedraw) {
       this._drawStarfield(elapsed);
       this._starTex.needsUpdate = true;
     }
@@ -343,6 +483,20 @@ export class BridgeScene {
       this._warpProgress = Math.min(1, this._warpProgress + dt * 0.5);
       if (this._warpProgress >= 1) {
         setTimeout(() => { this._warpActive = false; }, 2000);
+      }
+    }
+
+    // Red alert: pulse accent lights and ceiling ring red
+    if (this._redAlertMode) {
+      this._redAlertTime += dt;
+      const pulse = 0.5 + 0.5 * Math.sin(this._redAlertTime * RED_ALERT_PULSE_FREQUENCY);
+      this._accentLights.forEach(l => {
+        l.color.setHSL(0, 1, 0.3 + pulse * 0.35);
+        l.intensity = 2.0 + pulse * 2.0;
+      });
+      if (this._ceilLightMat) {
+        this._ceilLightMat.emissive.setHSL(0, 1, 0.15 + pulse * 0.2);
+        this._ceilLightMat.emissiveIntensity = 0.5 + pulse;
       }
     }
   }
