@@ -41,18 +41,19 @@ export function buildBridge() {
 
   // ── Shared materials (reused across meshes → draw-call batching) ──────
   const mats = {
-    carpet:     makeMat(P.carpet,     { roughness: 0.92, map: createCarpetTexture(P.carpet) }),
+    carpet:     makeMat(P.carpet,     { roughness: 0.92 }),           // deep burgundy outer ring
+    carpetPit:  makeMat(P.carpetPit,  { roughness: 0.88 }),           // light grey pit floor
     wall:       makeMat(P.wall,       { roughness: 0.78, side: THREE.BackSide }),
     wallPanel:  makeMat(P.wallPanel,  { roughness: 0.6  }),
     wallBand:   makeMat(P.wallBand,   { roughness: 0.5, metalness: 0.15 }),
     ceiling:    makeMat(P.ceiling,    { roughness: 0.7, side: THREE.BackSide }),
-    console:    makeMat(P.console,    { roughness: 0.85 }),
+    console:    makeMat(P.console,    { roughness: 0.80 }),
     wood:       makeMat(P.wood,       { roughness: 0.35 }),
-    seat:       makeMat(P.seat,       { roughness: 0.65 }),
+    seat:       makeMat(P.seat,       { roughness: 0.72 }),           // cream/ivory (not red)
     chairFrame: makeMat(P.frame,      { roughness: 0.4, metalness: 0.5 }),
     metal:      makeMat(P.metal,      { roughness: 0.25, metalness: 0.7 }),
     doorFrame:  makeMat(P.doorFrame,  { roughness: 0.4, metalness: 0.5 }),
-    doorPanel:  makeMat(P.doorPanel,  { roughness: 0.5  }),
+    doorPanel:  makeMat(P.doorPanel,  { roughness: 0.55 }),           // charcoal grey
     vsFrame:    makeMat(P.vsFrame,    { roughness: 0.2, metalness: 0.6 }),
     vsSurround: makeMat(P.vsSurround, { roughness: 0.6  }),
   };
@@ -107,10 +108,10 @@ function buildFloor(mats) {
   outerGeo.rotateX(-Math.PI / 2);
   g.add(new THREE.Mesh(outerGeo, mats.carpet));
 
-  // Pit floor (y = -depth)
+  // Pit floor (y = -depth) — lighter warm-grey to contrast with burgundy outer ring
   const pitGeo = new THREE.CircleGeometry(pitR, segments);
   pitGeo.rotateX(-Math.PI / 2);
-  const pit = new THREE.Mesh(pitGeo, mats.carpet);
+  const pit = new THREE.Mesh(pitGeo, mats.carpetPit);
   pit.position.y = -depth;
   g.add(pit);
 
@@ -182,10 +183,10 @@ function buildWalls(mats) {
 function buildCeiling(mats, resources) {
   const g = new THREE.Group();
   const { radius, wallHeight, domeApex, segments } = BRIDGE.room;
+  const P = BRIDGE.palette;
 
-  // Sphere parameters for the dome cap:
-  //   R = (r² + h²) / (2h),  yc = apex - R,  θ = asin(r / R)
-  const h      = domeApex - wallHeight;         // 1.6 m rise
+  // ── Dome sphere cap ──────────────────────────────────────────────────
+  const h      = domeApex - wallHeight;   // 1.6 m rise
   const R      = (radius * radius + h * h) / (2 * h);
   const yc     = domeApex - R;
   const theta  = Math.asin(radius / R);
@@ -195,39 +196,93 @@ function buildCeiling(mats, resources) {
   dome.position.y = yc;
   g.add(dome);
 
-  // Concentric light rings on the dome
-  const ringMat = new THREE.MeshStandardMaterial({
-    color: 0xFFFFFF,
-    emissive: 0xFFEECC,
-    emissiveIntensity: 1.8,
-  });
-  resources.ceilLightMat = ringMat;
+  // ── Structural rib material (warm tan/gold) ──────────────────────────
+  const domeRibMat = makeMat(P.domeRib, { roughness: 0.52, metalness: 0.06 });
 
-  [1.8, 3.2, 4.8].forEach(r => {
-    const ringY = yc + Math.sqrt(R * R - r * r);
-    const ring  = new THREE.Mesh(
-      new THREE.TorusGeometry(r, 0.045, 8, segments),
-      ringMat,
+  // ── Backlit panel material (large emissive bright-white) ─────────────
+  const panelMat = new THREE.MeshStandardMaterial({
+    color: 0xFFFFFF,
+    emissive: new THREE.Color(P.domeGlow),
+    emissiveIntensity: 2.4,
+    roughness: 0.35,
+  });
+  resources.ceilLightMat = panelMat;
+
+  // ── Concentric structural rib rings (fat torus, tan/gold) ─────────────
+  // Three rings divide the dome into four luminous bays
+  const ribRadii = [1.55, 3.20, 5.0];
+  ribRadii.forEach(r => {
+    if (r > radius - 0.2) return;
+    const ribY = yc + Math.sqrt(Math.max(0, R * R - r * r));
+    const rib  = new THREE.Mesh(
+      new THREE.TorusGeometry(r, 0.10, 10, segments),
+      domeRibMat,
     );
-    ring.rotation.x = Math.PI / 2;
-    ring.position.y = ringY;
-    g.add(ring);
+    rib.rotation.x = Math.PI / 2;
+    rib.position.y = ribY;
+    g.add(rib);
   });
 
-  // Central translucent dome glow
-  const glowMat = new THREE.MeshStandardMaterial({
-    color: 0xFFFFFF,
-    emissive: BRIDGE.palette.domeGlow,
-    emissiveIntensity: 0.5,
-    transparent: true,
-    opacity: 0.35,
-    side: THREE.BackSide,
+  // ── Backlit panels between rib rings (flat RingGeometry at dome height) ─
+  const panelZones = [
+    [0.06, 1.45],           // inner cap
+    [1.65, 3.10],           // mid ring
+    [3.30, 4.90],           // outer ring
+    [5.10, radius - 0.25],  // outermost bay
+  ];
+  panelZones.forEach(([r0, r1]) => {
+    if (r1 <= r0 + 0.1) return;
+    const midR   = (r0 + r1) / 2;
+    const panelY = yc + Math.sqrt(Math.max(0, R * R - midR * midR));
+    const pGeo   = new THREE.RingGeometry(r0, r1, segments);
+    pGeo.rotateX(-Math.PI / 2);
+    const panel  = new THREE.Mesh(pGeo, panelMat);
+    panel.position.y = panelY;
+    g.add(panel);
   });
-  const glowGeo = new THREE.SphereGeometry(2.0, 32, 8, 0, Math.PI * 2, 0, Math.PI * 0.18);
-  const glow    = new THREE.Mesh(glowGeo, glowMat);
-  glow.position.y = domeApex - 0.3;
-  glow.rotation.x = Math.PI;
-  g.add(glow);
+
+  // ── Radial spoke ribs (InstancedMesh — 8 spokes, tan/gold) ──────────
+  //   A thin ridge box oriented along +X, rotated Y to each spoke angle,
+  //   tilted X to follow the dome's shallow curvature at its midpoint.
+  const SPOKES   = 8;
+  const spokeLen = radius * 0.90;   // from near-center out to near-wall
+  const spokeGeo = new THREE.BoxGeometry(spokeLen, 0.08, 0.13);
+  const spokeInst = new THREE.InstancedMesh(spokeGeo, domeRibMat, SPOKES);
+
+  const midR  = spokeLen / 2;
+  const midY  = yc + Math.sqrt(Math.max(0, R * R - midR * midR));
+  const tiltA = Math.asin(Math.min(midR / R, 1.0));   // dome slope at midpoint
+
+  for (let s = 0; s < SPOKES; s++) {
+    const angle = (s / SPOKES) * Math.PI * 2;
+    _obj.position.set(
+      Math.cos(angle) * midR,
+      midY,
+      Math.sin(angle) * midR,
+    );
+    // XYZ Euler intrinsic: tilt X, then spin Y — maps +X to radial+slope direction
+    _obj.rotation.set(tiltA, -angle, 0);
+    _obj.scale.setScalar(1);
+    _obj.updateMatrix();
+    spokeInst.setMatrixAt(s, _obj.matrix);
+  }
+  spokeInst.instanceMatrix.needsUpdate = true;
+  g.add(spokeInst);
+
+  // ── Outer wall trim ring at dome base ─────────────────────────────────
+  const wallRingMat = new THREE.MeshStandardMaterial({
+    color: P.domeRib,
+    emissive: new THREE.Color(P.domeGlow),
+    emissiveIntensity: 0.7,
+    roughness: 0.5,
+  });
+  const wallRing = new THREE.Mesh(
+    new THREE.TorusGeometry(radius - 0.02, 0.09, 10, segments),
+    wallRingMat,
+  );
+  wallRing.rotation.x = Math.PI / 2;
+  wallRing.position.y = wallHeight + 0.05;
+  g.add(wallRing);
 
   return g;
 }
@@ -641,25 +696,26 @@ function buildDoors(mats) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function buildLighting(root, resources) {
-  // Hemisphere — warm sky / cool ground fill
-  const hemi = new THREE.HemisphereLight(0xFFF4E0, 0x443322, 1.2);
+  // Hemisphere — the TNG bridge is very bright and warm:
+  //   bright warm-white sky, very dim warm-brown ground
+  const hemi = new THREE.HemisphereLight(0xFFF8F0, 0x2A1E14, 1.4);
   root.add(hemi);
 
-  // Central dome point light (primary key)
-  const dome = new THREE.PointLight(0xFFEECC, 2.8, 22);
-  dome.position.set(0, BRIDGE.room.domeApex - 0.5, 0);
+  // Central dome point — primary key light (warm white)
+  const dome = new THREE.PointLight(0xFFF4E8, 3.2, 24);
+  dome.position.set(0, BRIDGE.room.domeApex - 0.4, 0);
   root.add(dome);
   resources.accentLights.push(dome);
 
-  // Forward fill toward viewscreen
-  const fwd = new THREE.PointLight(0x99AACC, 1.0, 14);
-  fwd.position.set(0, 3.5, -4.5);
+  // Forward fill toward viewscreen (slight cool-blue from screen)
+  const fwd = new THREE.PointLight(0xBBCCDD, 0.8, 16);
+  fwd.position.set(0, 3.2, -4.5);
   root.add(fwd);
   resources.accentLights.push(fwd);
 
   // Aft fill
-  const aft = new THREE.PointLight(0xFFCC88, 0.6, 12);
-  aft.position.set(0, 3.0, 4.0);
+  const aft = new THREE.PointLight(0xFFE8C8, 0.7, 14);
+  aft.position.set(0, 2.8, 4.5);
   root.add(aft);
   resources.accentLights.push(aft);
 }

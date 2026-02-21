@@ -145,8 +145,8 @@ export class BridgeScene {
         l.intensity = l._origIntensity ?? 2.0;
       });
       if (this._res.ceilLightMat) {
-        this._res.ceilLightMat.emissive.setHex(0xFFEECC);
-        this._res.ceilLightMat.emissiveIntensity = 1.8;
+        this._res.ceilLightMat.emissive.setHex(0xFFF8F0);
+        this._res.ceilLightMat.emissiveIntensity = 2.4;
       }
     }
     this._audio.play?.('computer_ack');

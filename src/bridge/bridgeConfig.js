@@ -71,22 +71,35 @@ export const BRIDGE = {
     { deg: 128, label: 'TACTICAL II' },
   ],
 
-  // ── Colour palette (TNG warm beige / matte) ───────────────────────────
+  // ── Colour palette (TNG Season 2-7 bridge — reference image matched) ──
   palette: {
-    carpet:     0xB8B8BA,
-    wall:       0xCDBFA0,
-    wallPanel:  0xA89878,
-    wallBand:   0x776644,
-    ceiling:    0xD5CEBC,
-    domeGlow:   0xFFF4DD,
-    console:    0x2A2A3E,
-    wood:       0x6B4226,
-    seat:       0xAA2222,
-    frame:      0x333333,
-    metal:      0xBBBBBB,
+    // Floor
+    carpet:     0x5C3848,   // deep burgundy/plum outer ring carpet
+    carpetPit:  0xBFB9AC,   // light warm-grey pit centre floor
+
+    // Walls
+    wall:       0xD4C8A8,   // warm cream-beige (primary wall surface)
+    wallPanel:  0xC4B898,   // slightly darker warm panel variant
+    wallBand:   0x8A7862,   // medium warm-brown accent bands
+
+    // Ceiling dome
+    ceiling:    0xE2DBC8,   // warm off-white dome surface
+    domeGlow:   0xFFF8F0,   // near-white backlit panel glow
+    domeRib:    0xC8B880,   // tan/gold structural dome ribs
+
+    // Consoles
+    console:    0x5A5A62,   // warm charcoal console body (not so navy-dark)
+    wood:       0x7C4A28,   // rich mahogany handrail / trim
+
+    // Seating — cream/ivory (NOT red)
+    seat:       0xD8CAA0,   // warm cream upholstered chairs
+
+    // Misc
+    frame:      0x3C3C3C,
+    metal:      0xC0C0C0,
     doorFrame:  0x444444,
-    doorPanel:  0xC8A882,
+    doorPanel:  0x787878,   // charcoal grey sliding panels
     vsFrame:    0x1A1A1A,
-    vsSurround: 0xCDBFA0,
+    vsSurround: 0xD4C8A8,   // match wall
   },
 };
