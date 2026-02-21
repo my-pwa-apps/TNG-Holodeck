@@ -358,18 +358,22 @@ function buildDoors(mats, doorsOut) {
 // ═══════════════════════════════════════════════════════════════
 
 function buildLighting(root, resources) {
-  // Near-black hemisphere — just enough to give wall panels form in shadow
-  const hemi = new THREE.HemisphereLight(0x1A2030, 0x080510, 0.12);
+  // Hemisphere provides the base ambient colour across the whole ring.
+  // Raised to 0.40 so wall panels show their slate-grey colour instead of
+  // rendering pure black (ring radius is 10 m — point lights at centre
+  // cannot reach the walls without a reasonable ambient base).
+  const hemi = new THREE.HemisphereLight(0x1C2235, 0x0A0810, 0.40);
   root.add(hemi);
 
-  // Baseboard zone fill — warm white scatter near floor
-  const baseLight = new THREE.PointLight(0xF8F8F0, 1.8, 8);
+  // Baseboard zone fill — warm white near floor.
+  // Range extended to 22 m so it reaches both inner (8.9 m) and outer (11.1 m) walls.
+  const baseLight = new THREE.PointLight(0xF8F8F0, 2.2, 22);
   baseLight.position.set(0, 0.30, 0);
   root.add(baseLight);
   resources.accentLights.push(baseLight);
 
-  // Ceiling zone fill — cool white scatter from ceiling tiles
-  const ceilLight = new THREE.PointLight(0xF0F4FF, 1.5, 10);
+  // Ceiling zone fill — cool white from ceiling tiles.
+  const ceilLight = new THREE.PointLight(0xF0F4FF, 1.8, 22);
   ceilLight.position.set(0, RING.wallHeight * 0.95, 0);
   root.add(ceilLight);
   resources.accentLights.push(ceilLight);
