@@ -76,12 +76,12 @@ export class MaterializationSystem {
    * Scatter particles to match the bounding box of the given objects,
    * then animate them converging (progress 0→1).
    */
-  materialize(objects = []) {
+  materialize(objects = [], onComplete) {
     this._setTargets(objects);
     this._progress  = 0;
     this._direction = 1;
     this._active    = true;
-    this._onComplete = null;
+    this._onComplete = onComplete;
     this._particles.visible = true;
     this._material.uniforms.uProgress.value = 0;
   }
@@ -147,6 +147,10 @@ export class MaterializationSystem {
     if (this._direction > 0 && this._progress >= 1) {
       this._active = false;
       this._particles.visible = false;
+      if (this._onComplete) {
+        this._onComplete();
+        this._onComplete = null;
+      }
     } else if (this._direction < 0 && this._progress <= 0) {
       this._active = false;
       this._particles.visible = false;

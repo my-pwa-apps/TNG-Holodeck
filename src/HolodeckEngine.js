@@ -447,13 +447,16 @@ export class HolodeckEngine {
       if (SceneClass) {
         this._currentSceneModule = new SceneClass(this.scene, this.audio);
         const root = this._currentSceneModule.load();
-        this.matSys.materialize([root]);
+        this.matSys.materialize([root], () => {
+          this.holoRoom._group.visible = false;
+        });
         this.audio.play('materialize');
         this.audio.playAmbient(name);
       } else {
         // Grid room — just play ambient and reset fog
         this.scene.fog = new THREE.FogExp2(0x000000, 0.015);
         this.audio.playAmbient('grid');
+        this.holoRoom._group.visible = true;
         this.matSys.materialize([]);
       }
       store.setCurrentScene(name);
@@ -466,6 +469,7 @@ export class HolodeckEngine {
     };
 
     if (this._currentSceneModule) {
+      this.holoRoom._group.visible = true;
       const objects = [this._currentSceneModule._root].filter(Boolean);
       this.matSys.dematerialize(objects, () => {
         this._currentSceneModule.unload();
