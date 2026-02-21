@@ -64,6 +64,7 @@ export class HolodeckEngine {
     this.renderer = new THREE.WebGLRenderer({
       canvas:    this.canvas,
       antialias: true,
+      powerPreference: "high-performance",
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -106,6 +107,8 @@ export class HolodeckEngine {
   _initScene() {
     this.scene            = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000000);
+    // Add a subtle global fog to blend the grid room into the distance
+    this.scene.fog = new THREE.FogExp2(0x000000, 0.015);
   }
 
   _initCamera() {
@@ -130,8 +133,9 @@ export class HolodeckEngine {
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
 
+    // Render bloom at half resolution for significant performance gain
     this.bloomPass = new UnrealBloomPass(
-      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      new THREE.Vector2(window.innerWidth / 2, window.innerHeight / 2),
       1.8,   // strength  — strong enough for warm grid-line glow
       0.45,  // radius    — tight radius keeps the glow close to the lines
       0.16   // threshold — grid lines at ~1.0 brightness: well above threshold
@@ -172,7 +176,7 @@ export class HolodeckEngine {
           new THREE.Vector3(0, 0, 0),
           new THREE.Vector3(0, 0, -8),
         ]),
-        new THREE.LineBasicMaterial({ color: 0x88CCFF, transparent: true, opacity: 0.55 })
+        new THREE.LineBasicMaterial({ color: 0xFF9900, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending }) // TNG LCARS Orange
       );
       ctrl.userData.ray = ray;
       ctrl.add(ray);
@@ -299,7 +303,12 @@ export class HolodeckEngine {
     const headFwd = new THREE.Vector3(0, 0, -1)
       .applyQuaternion(this.camera.quaternion);
     headFwd.y = 0;
-    headFwd.normalize();
+    if (headFwd.lengthSq() > 0.001) {
+      headFwd.normalize();
+    } else {
+      headFwd.set(0, 0, -1);
+    }
+    
     const headRight = new THREE.Vector3().crossVectors(
       headFwd, new THREE.Vector3(0, 1, 0)
     ).normalize();
@@ -343,7 +352,9 @@ export class HolodeckEngine {
       return;
     }
     // Default: play audio phaser burst
-    this.audio.play?.('computer_ack');
+    if (this.audio && this.audio.play) {
+      this.audio.play('computer_ack');
+    }
   }
 
   // ── Scene systems ──────────────────────────────────────────────────────
@@ -387,9 +398,11 @@ export class HolodeckEngine {
       high:   { bs: 2.4,  br: 0.6, bt: 0.14, exp: 1.6 },
     };
     const p = presets[q] || presets.medium;
-    this.bloomPass.strength  = p.bs;
-    this.bloomPass.radius    = p.br;
-    this.bloomPass.threshold = p.bt;
+    if (this.bloomPass) {
+      this.bloomPass.strength  = p.bs;
+      this.bloomPass.radius    = p.br;
+      this.bloomPass.threshold = p.bt;
+    }
     if (!this.renderer.xr.isPresenting) {
       this.renderer.toneMappingExposure = p.exp;
     }
@@ -409,8 +422,9 @@ export class HolodeckEngine {
 
     // Derive label from current scene key so we never stack " — XR" twice
     const scene = useSceneStore.getState().currentScene;
+    const baseLabel = SCENE_LABELS[scene] || 'HOLODECK PROGRAM';
     useSceneStore.getState().setProgramRunning(
-      (SCENE_LABELS[scene] || 'HOLODECK PROGRAM') + ' — XR ACTIVE'
+      baseLabel.replace(' — XR ACTIVE', '') + ' — XR ACTIVE'
     );
   }
 
@@ -418,6 +432,10 @@ export class HolodeckEngine {
     this.renderer.shadowMap.type      = THREE.PCFSoftShadowMap;
     this.renderer.toneMappingExposure = 1.6;
     if (this.matSys) this.matSys.setXRMode(false);
+    
+    const scene = useSceneStore.getState().currentScene;
+    const baseLabel = SCENE_LABELS[scene] || 'HOLODECK PROGRAM';
+    useSceneStore.getState().setProgramRunning(baseLabel.replace(' — XR ACTIVE', ''));
   }
 
   // ── Scene loading ──────────────────────────────────────────────────────
@@ -433,12 +451,18 @@ export class HolodeckEngine {
         this.audio.play('materialize');
         this.audio.playAmbient(name);
       } else {
-        // Grid room — just play ambient
+        // Grid room — just play ambient and reset fog
+        this.scene.fog = new THREE.FogExp2(0x000000, 0.015);
         this.audio.playAmbient('grid');
         this.matSys.materialize([]);
       }
       store.setCurrentScene(name);
-      store.setProgramRunning(SCENE_LABELS[name] || name.toUpperCase());
+      
+      let label = SCENE_LABELS[name] || name.toUpperCase();
+      if (this.renderer.xr.isPresenting) {
+        label += ' — XR ACTIVE';
+      }
+      store.setProgramRunning(label);
     };
 
     if (this._currentSceneModule) {
@@ -457,9 +481,11 @@ export class HolodeckEngine {
   // ── Grab & release ─────────────────────────────────────────────────────
   _onGrab(controller) {
     const raycaster  = this._grabRaycaster;
-    const tempMatrix = this._grabMatrix.extractRotation(controller.matrixWorld);
     raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+    
+    // Extract rotation properly
+    const tempQuat = new THREE.Quaternion().setFromRotationMatrix(controller.matrixWorld);
+    raycaster.ray.direction.set(0, 0, -1).applyQuaternion(tempQuat);
 
     const interactables = [];
     this.scene.traverse(o => { if (o.userData.interactable) interactables.push(o); });
@@ -484,7 +510,7 @@ export class HolodeckEngine {
   }
 
   _animate() {
-    const dt      = this.clock.getDelta();
+    const dt      = Math.min(this.clock.getDelta(), 0.1); // Cap dt to prevent huge jumps on lag
     const elapsed = this.clock.getElapsedTime();
 
     if (!this.frozen) {
@@ -494,7 +520,9 @@ export class HolodeckEngine {
       this.holoRoom.update(elapsed);
       this.matSys.update(dt, elapsed);
       this.arch.update(elapsed);
-      if (this._currentSceneModule) this._currentSceneModule.update(dt, elapsed);
+      if (this._currentSceneModule && this._currentSceneModule.update) {
+        this._currentSceneModule.update(dt, elapsed);
+      }
     }
 
     // In VR, WebXR manages its own render target; skip EffectComposer
@@ -517,9 +545,13 @@ export class HolodeckEngine {
     if (this.keys['KeyA'] || this.keys['ArrowLeft'])  dir.x -= 1;
     if (this.keys['KeyD'] || this.keys['ArrowRight']) dir.x += 1;
 
-    dir.normalize().applyEuler(this.camera.rotation);
-    dir.y = 0;
-    this.cameraRig.position.addScaledVector(dir, speed);
+    if (dir.lengthSq() > 0) {
+      dir.normalize();
+      // Apply only Y rotation for flat movement
+      const euler = new THREE.Euler(0, this.camera.rotation.y, 0, 'YXZ');
+      dir.applyEuler(euler);
+      this.cameraRig.position.addScaledVector(dir, speed);
+    }
   }
 
   // ── Window resize ──────────────────────────────────────────────────────
@@ -530,7 +562,7 @@ export class HolodeckEngine {
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(w, h);
       this.composer.setSize(w, h);
-      this.bloomPass.setSize(w, h);
+      this.bloomPass.resolution.set(w / 2, h / 2);
     });
   }
 
