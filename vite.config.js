@@ -14,7 +14,8 @@ export default defineConfig({
     port: 5173,
   },
   build: {
-    target: 'esnext',
+    outDir:  'docs',     // GitHub Pages serves /docs on the main branch
+    target:  'esnext',
     sourcemap: true,
   },
 });
