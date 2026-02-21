@@ -73,6 +73,7 @@ export class HolodeckEngine {
     // visible without overexposing emissive grid lines or UI elements.
     this.renderer.toneMappingExposure = 1.6;
     this.renderer.xr.enabled = true;
+    this.renderer.localClippingEnabled = true;
 
     // ── Quest 3S optimisations ───────────────────────────────────────────
     // Fixed foveated rendering: renders full quality in centre of view
