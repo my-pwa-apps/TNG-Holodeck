@@ -69,7 +69,10 @@ export class HolodeckEngine {
     this.renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace   = THREE.SRGBColorSpace;
     this.renderer.toneMapping        = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.0;
+    // ACESFilmic aggressively compresses dim mid-tones.
+    // 1.6 exposure keeps MeshStandardMaterial surfaces (lit by ~0.4 ambient)
+    // visible without overexposing emissive grid lines or UI elements.
+    this.renderer.toneMappingExposure = 1.6;
     this.renderer.xr.enabled = true;
 
     // ── Quest 3S optimisations ───────────────────────────────────────────
@@ -210,14 +213,18 @@ export class HolodeckEngine {
 
   _applyQuality(q) {
     const presets = {
-      low:    { bloomStrength: 0.6,  bloomRadius: 0.4, bloomThreshold: 0.25 },
-      medium: { bloomStrength: 1.4,  bloomRadius: 0.6, bloomThreshold: 0.18 },
-      high:   { bloomStrength: 2.2,  bloomRadius: 0.7, bloomThreshold: 0.15 },
+      //               strength  radius  threshold  exposure
+      low:    { bs: 0.8,  br: 0.4, bt: 0.28, exp: 1.6 },
+      medium: { bs: 1.6,  br: 0.5, bt: 0.20, exp: 1.6 },
+      high:   { bs: 2.4,  br: 0.6, bt: 0.14, exp: 1.6 },
     };
     const p = presets[q] || presets.medium;
-    this.bloomPass.strength  = p.bloomStrength;
-    this.bloomPass.radius    = p.bloomRadius;
-    this.bloomPass.threshold = p.bloomThreshold;
+    this.bloomPass.strength  = p.bs;
+    this.bloomPass.radius    = p.br;
+    this.bloomPass.threshold = p.bt;
+    if (!this.renderer.xr.isPresenting) {
+      this.renderer.toneMappingExposure = p.exp;
+    }
   }
 
   // ── Quest 3S XR performance mode ──────────────────────────────────────
@@ -225,7 +232,9 @@ export class HolodeckEngine {
     // In XR: disable EffectComposer (already bypassed in _animate),
     // reduce shadow maps, lower tone mapping exposure slightly.
     this.renderer.shadowMap.type      = THREE.BasicShadowMap; // fastest
-    this.renderer.toneMappingExposure = 0.85; // compensate for HDR in headset
+    // Headset colour pipeline already applies its own tone compression;
+    // reduce exposure slightly to avoid washout inside the headset.
+    this.renderer.toneMappingExposure = 1.2;
 
     // Tell MaterializationSystem to drop to XR particle budget
     if (this.matSys) this.matSys.setXRMode(true);
@@ -238,8 +247,8 @@ export class HolodeckEngine {
   }
 
   _onXRSessionEnd() {
-    this.renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
-    this.renderer.toneMappingExposure = 1.0;
+    this.renderer.shadowMap.type      = THREE.PCFSoftShadowMap;
+    this.renderer.toneMappingExposure = 1.6;
     if (this.matSys) this.matSys.setXRMode(false);
   }
 

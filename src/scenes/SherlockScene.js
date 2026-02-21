@@ -14,10 +14,11 @@ export class SherlockScene {
   }
 
   load() {
-    this._scene.fog = new THREE.FogExp2(0x110b06, 0.045);
+    this._scene.fog = new THREE.FogExp2(0x110b06, 0.038);
 
-    // ── Ambient light (very dim — just gas lamp glow) ─────────────────────
-    this._ambient = new THREE.AmbientLight(0x221508, 0.4);
+    // ── Ambient light — raised so ACES doesn't crush the dark surfaces ─────
+    // A warm candlelight tint at decent intensity; gas lamps add the local fill.
+    this._ambient = new THREE.AmbientLight(0x5c3010, 1.2);
     this._root.add(this._ambient);
 
     // ── Cobblestone floor ─────────────────────────────────────────────────
@@ -112,7 +113,7 @@ export class SherlockScene {
     group.add(glass);
 
     // Point light
-    const light = new THREE.PointLight(0xFFAA33, 2.0, 8, 2);
+    const light = new THREE.PointLight(0xFFAA33, 5.0, 10, 2);
     light.position.y = 3.7;
     light.castShadow  = true;
     group.add(light);
@@ -174,8 +175,8 @@ export class SherlockScene {
     this._lamps.forEach(({ light, glass, phase }) => {
       const flicker = 0.8 + 0.2 * Math.sin(elapsed * 12 + phase)
                     + 0.05 * (Math.random() - 0.5);
-      light.intensity  = 2.0 * flicker;
-      glass.material.emissiveIntensity = 1.8 * flicker;
+      light.intensity  = 5.0 * flicker;
+      glass.material.emissiveIntensity = 2.2 * flicker;
     });
 
     // Walk NPCs

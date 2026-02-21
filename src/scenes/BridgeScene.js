@@ -19,16 +19,17 @@ export class BridgeScene {
     this._scene.fog = null;
 
     // ── Lighting ─────────────────────────────────────────────────────────
-    this._root.add(new THREE.AmbientLight(0x112233, 0.3));
+    // Raised ambient so ACES doesn't crush the dark hull/console surfaces.
+    this._root.add(new THREE.AmbientLight(0x334466, 0.8));
 
-    const keyLight = new THREE.SpotLight(0x4488FF, 2.0, 20, Math.PI / 4, 0.5);
+    const keyLight = new THREE.SpotLight(0x6699CC, 5.0, 20, Math.PI / 4, 0.5);
     keyLight.position.set(0, 5, 0);
     keyLight.castShadow = true;
     this._root.add(keyLight);
 
     // Accent lights at console positions
     [[-3, 1, -1], [3, 1, -1], [0, 1, 2]].forEach(pos => {
-      const l = new THREE.PointLight(0xFF9900, 0.6, 5);
+      const l = new THREE.PointLight(0xFF9900, 1.5, 6);
       l.position.set(...pos);
       this._root.add(l);
     });

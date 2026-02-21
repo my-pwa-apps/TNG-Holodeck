@@ -30,7 +30,8 @@ export class AlienScene {
     this._root.add(this._buildFlora());
 
     // ── Ambient ───────────────────────────────────────────────────────────
-    this._root.add(new THREE.AmbientLight(0x220044, 0.5));
+    // Raised so purple terrain isn't crushed to black by ACESFilmic.
+    this._root.add(new THREE.AmbientLight(0x441166, 1.0));
 
     this._scene.add(this._root);
     return this._root;
@@ -134,7 +135,7 @@ export class AlienScene {
     const group = new THREE.Group();
 
     // Warm sun (dominant)
-    const sun1 = new THREE.DirectionalLight(0xFFD080, 1.2);
+    const sun1 = new THREE.DirectionalLight(0xFFD080, 3.0);
     sun1.position.set(-15, 20, -20);
     sun1.castShadow  = true;
     sun1.shadow.mapSize.width  = 1024;
@@ -143,7 +144,7 @@ export class AlienScene {
     this._sunLights.push(sun1);
 
     // Cool sun (secondary, blue-white)
-    const sun2 = new THREE.DirectionalLight(0x8899FF, 0.5);
+    const sun2 = new THREE.DirectionalLight(0x99AAFF, 1.2);
     sun2.position.set(20, 12, -10);
     group.add(sun2);
     this._sunLights.push(sun2);
