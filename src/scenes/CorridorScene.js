@@ -44,7 +44,6 @@ export class CorridorScene {
 
     this._buildHull();
     this._buildLights();
-    this._buildWallPanels();
     this._buildDoors();
     this._buildContainmentField();
     this._buildPhaser();
@@ -110,76 +109,101 @@ export class CorridorScene {
 
   // ── Hull geometry ───────────────────────────────────────────────────────
   _buildHull() {
-    const L   = 11;    // half-length of corridor
-    const W   = 1.25;  // half-width (total 2.5m)
-    const FLH = 0;     // floor y
-    const SWH = 2.1;   // side-wall top y (where the ceiling arc begins)
-    const ARC_R = 1.25;  // ceiling arc radius — matches half-width perfectly
-    const ARC_Y = SWH;   // arc centre y
+    const L = 11;
+    const zStart = -L, zEnd = L;
 
-    // ── Floor ──────────────────────────────────────────────────────────
-    const floorGeo = new THREE.PlaneGeometry(W * 2, L * 2, 1, 1);
-    floorGeo.rotateX(-Math.PI / 2);
-    const floorMat = new THREE.MeshStandardMaterial({
-      color:     0x1a1a1e,
-      roughness: 0.55,
-      metalness: 0.15,
-    });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.position.y = FLH;
-    floor.receiveShadow = true;
-    this._root.add(floor);
+    const carpetMat = new THREE.MeshStandardMaterial({ color: 0x4a5a75, roughness: 0.9 });
+    const floorBorderMat = new THREE.MeshStandardMaterial({ color: 0xc8b8b0, roughness: 0.8 });
+    const lightStripMat = new THREE.MeshStandardMaterial({ color: 0xddddff, emissive: 0xddddff, emissiveIntensity: 1.5 });
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xa0a5a9, roughness: 0.5 });
+    const bumperMat = new THREE.MeshStandardMaterial({ color: 0x4a2a18, roughness: 0.4 });
+    const blackPanelMat = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.1 });
+    const ceilingLightMat = new THREE.MeshStandardMaterial({ color: 0xffffee, emissive: 0xffffee, emissiveIntensity: 1.2 });
 
-    // ── Side walls ─────────────────────────────────────────────────────
-    const wallMat = new THREE.MeshStandardMaterial({
-      color:     0xc8b89a,   // TNG beige/wheat hull colour
-      roughness: 0.72,
-      metalness: 0.04,
-    });
-    [W, -W].forEach(x => {
-      const wGeo = new THREE.PlaneGeometry(L * 2, SWH);
-      const wall = new THREE.Mesh(wGeo, wallMat);
-      wall.position.set(x, SWH / 2, 0);
-      wall.rotation.y = x > 0 ? -Math.PI / 2 : Math.PI / 2;
-      wall.receiveShadow = true;
-      this._root.add(wall);
+    const pts = [
+      { x: 0,    y: 0 },
+      { x: 0.8,  y: 0 },
+      { x: 1.2,  y: 0 },
+      { x: 1.25, y: 0.15 },
+      { x: 1.4,  y: 0.7 },
+      { x: 1.45, y: 0.7 },
+      { x: 1.45, y: 0.85 },
+      { x: 1.4,  y: 0.85 },
+      { x: 1.4,  y: 1.5 },
+      { x: 0.8,  y: 2.4 },
+      { x: 0,    y: 2.4 }
+    ];
+    
+    const bands = [
+      { p1: pts[0], p2: pts[1], mat: carpetMat },
+      { p1: pts[1], p2: pts[2], mat: floorBorderMat },
+      { p1: pts[2], p2: pts[3], mat: lightStripMat },
+      { p1: pts[3], p2: pts[4], mat: wallMat },
+      { p1: pts[4], p2: pts[5], mat: bumperMat },
+      { p1: pts[5], p2: pts[6], mat: bumperMat },
+      { p1: pts[6], p2: pts[7], mat: bumperMat },
+      { p1: pts[7], p2: pts[8], mat: blackPanelMat },
+      { p1: pts[8], p2: pts[9], mat: wallMat },
+      { p1: pts[9], p2: pts[10], mat: ceilingLightMat },
+    ];
+
+    const buildBand = (p1, p2, mat) => {
+      const geo = new THREE.BufferGeometry();
+      const vertices = new Float32Array([
+        p1.x, p1.y, zStart,
+        p2.x, p2.y, zStart,
+        p1.x, p1.y, zEnd,
+        p1.x, p1.y, zEnd,
+        p2.x, p2.y, zStart,
+        p2.x, p2.y, zEnd
+      ]);
+      geo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, mat);
+      mat.side = THREE.DoubleSide; 
+      mesh.receiveShadow = true;
+      this._root.add(mesh);
+    };
+
+    bands.forEach(b => {
+      buildBand(b.p1, b.p2, b.mat);
+      buildBand({x: -b.p1.x, y: b.p1.y}, {x: -b.p2.x, y: b.p2.y}, b.mat);
     });
 
-    // ── Ceiling arc (half-cylinder, BackSide so it reads as an interior surface) ──
-    const arcGeo = new THREE.CylinderGeometry(ARC_R, ARC_R, L * 2, 16, 1, true,
-      -Math.PI / 2, Math.PI);      // open: top half → inside arc
-    const arcMat = new THREE.MeshStandardMaterial({
-      color:     0xb8a88a,
-      roughness: 0.75,
-      side:      THREE.BackSide,
-    });
-    const arc = new THREE.Mesh(arcGeo, arcMat);
-    arc.position.set(0, ARC_Y, 0);
-    arc.rotation.z = Math.PI / 2;  // rotate so cylinder axis = Z
-    arc.rotation.x = Math.PI / 2;
-    arc.receiveShadow = true;
-    this._root.add(arc);
+    // ── Structural Ribs ─────────────────────────────────────────────────
+    const ribShape = new THREE.Shape();
+    ribShape.moveTo(1.2, 0);
+    ribShape.lineTo(1.25, 0.15);
+    ribShape.lineTo(1.4, 0.7);
+    ribShape.lineTo(1.4, 1.5);
+    ribShape.lineTo(0.8, 2.4);
+    ribShape.lineTo(-0.8, 2.4);
+    ribShape.lineTo(-1.4, 1.5);
+    ribShape.lineTo(-1.4, 0.7);
+    ribShape.lineTo(-1.25, 0.15);
+    ribShape.lineTo(-1.2, 0);
+    
+    ribShape.lineTo(-1.15, 0);
+    ribShape.lineTo(-1.20, 0.15);
+    ribShape.lineTo(-1.35, 0.7);
+    ribShape.lineTo(-1.35, 1.5);
+    ribShape.lineTo(-0.75, 2.35);
+    ribShape.lineTo(0.75, 2.35);
+    ribShape.lineTo(1.35, 1.5);
+    ribShape.lineTo(1.35, 0.7);
+    ribShape.lineTo(1.20, 0.15);
+    ribShape.lineTo(1.15, 0);
+    ribShape.closePath();
 
-    // ── Ceiling accent strip (emissive warm light along the arc apex) ──
-    const stripGeo = new THREE.PlaneGeometry(0.18, L * 2 - 0.4);
-    const stripMat = new THREE.MeshStandardMaterial({
-      color:             0xfff0cc,
-      emissive:          new THREE.Color(0xfff0cc),
-      emissiveIntensity: 1.4,
-      roughness:         0.1,
-    });
-    const strip = new THREE.Mesh(stripGeo, stripMat);
-    strip.position.set(0, ARC_Y + ARC_R - 0.03, 0);
-    strip.rotation.x = -Math.PI / 2;
-    this._root.add(strip);
-
-    // ── Baseboards — darker accent strip at floor-wall join ───────────
-    const baseMat = new THREE.MeshStandardMaterial({ color: 0x3a3530, roughness: 0.9 });
-    [W, -W].forEach(x => {
-      const bGeo = new THREE.BoxGeometry(0.06, 0.22, L * 2);
-      const base = new THREE.Mesh(bGeo, baseMat);
-      base.position.set(x * 0.97, 0.11, 0);
-      this._root.add(base);
+    const ribGeo = new THREE.ExtrudeGeometry(ribShape, { depth: 0.3, bevelEnabled: false });
+    const ribMat = new THREE.MeshStandardMaterial({ color: 0xc8b89a, roughness: 0.8 });
+    
+    [-7.5, -4.5, -1.5, 1.5, 4.5, 7.5].forEach(z => {
+      const rib = new THREE.Mesh(ribGeo, ribMat);
+      rib.position.set(0, 0, z - 0.15);
+      rib.receiveShadow = true;
+      rib.castShadow = true;
+      this._root.add(rib);
     });
   }
 
@@ -192,7 +216,7 @@ export class CorridorScene {
     // Overhead point lights spaced 4m apart
     for (let z = -8; z <= 8; z += 4) {
       const pt = new THREE.PointLight(0xffe8b0, 1.8, 9);
-      pt.position.set(0, 3.2, z);
+      pt.position.set(0, 2.2, z);
       this._root.add(pt);
     }
 
@@ -207,43 +231,6 @@ export class CorridorScene {
     });
   }
 
-  // ── Decorative wall panels ──────────────────────────────────────────────
-  _buildWallPanels() {
-    const panelMat = new THREE.MeshStandardMaterial({ color: 0x9a9088, roughness: 0.65 });
-    const darkMat  = new THREE.MeshStandardMaterial({ color: 0x3a3530, roughness: 0.9  });
-    const accentMat= new THREE.MeshStandardMaterial({
-      color:             0xFF9900,
-      emissive:          new THREE.Color(0xFF9900),
-      emissiveIntensity: 0.3,
-      roughness:         0.4,
-    });
-
-    // Repeating wall panel pattern every 2.5m along Z
-    for (let z = -9; z <= 9; z += 2.5) {
-      [1.23, -1.23].forEach(x => {
-        const dir = x > 0 ? 1 : -1;
-
-        // Main recessed wall panel
-        const pGeo = new THREE.BoxGeometry(0.04, 1.5, 1.8);
-        const p    = new THREE.Mesh(pGeo, panelMat);
-        p.position.set(x, 1.2, z);
-        this._root.add(p);
-
-        // Horizontal accent stripe
-        const sGeo = new THREE.BoxGeometry(0.05, 0.06, 1.8);
-        const s    = new THREE.Mesh(sGeo, accentMat);
-        s.position.set(x, 2.0, z);
-        this._root.add(s);
-
-        // Dark vertical divider
-        const dGeo = new THREE.BoxGeometry(0.05, 1.5, 0.06);
-        const d    = new THREE.Mesh(dGeo, darkMat);
-        d.position.set(x, 1.2, z + 0.88);
-        this._root.add(d);
-      });
-    }
-  }
-
   // ── Sliding doors ───────────────────────────────────────────────────────
   _buildDoors() {
     const doorMat = new THREE.MeshStandardMaterial({
@@ -254,26 +241,26 @@ export class CorridorScene {
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x333840, roughness: 0.7 });
     const lcarsMatFn = () => new THREE.MeshBasicMaterial({ map: this._makeDoorLCARSTexture() });
 
-    // Three door pairs at z = -6, 0, +6
+    // Three door pairs at z = -6, 0, 6
     [-6, 0, 6].forEach(z => {
-      [1.25, -1.25].forEach(wallX => {
+      [1, -1].forEach(side => {
         const group = new THREE.Group();
 
-        // Door frame
-        const frameGeo = new THREE.BoxGeometry(0.08, 2.3, 1.62);
+        // Door frame block (acts as an alcove cutting into the angled wall)
+        const frameGeo = new THREE.BoxGeometry(0.6, 2.3, 1.8);
         const frame    = new THREE.Mesh(frameGeo, frameMat);
-        frame.position.set(wallX, 1.15, z);
+        frame.position.set(side * 1.4, 1.15, z);
         this._root.add(frame);
 
         // Left door half
         const lGeo  = new THREE.BoxGeometry(0.06, 2.1, 0.72);
         const lDoor = new THREE.Mesh(lGeo, doorMat);
-        lDoor.position.set(wallX, 1.05, z - 0.36);
+        lDoor.position.set(side * 1.25, 1.05, z - 0.36);
         group.add(lDoor);
 
         // Right door half
         const rDoor = new THREE.Mesh(lGeo.clone(), doorMat);
-        rDoor.position.set(wallX, 1.05, z + 0.36);
+        rDoor.position.set(side * 1.25, 1.05, z + 0.36);
         group.add(rDoor);
 
         this._root.add(group);
@@ -282,12 +269,12 @@ export class CorridorScene {
         const panelW = 0.22, panelH = 0.42;
         const lcarsGeo = new THREE.PlaneGeometry(panelW, panelH);
         const lcarsMesh = new THREE.Mesh(lcarsGeo, lcarsMatFn());
-        lcarsMesh.position.set(wallX * 0.98, 1.5, z + 0.95 * (wallX > 0 ? 1 : -1));
-        lcarsMesh.rotation.y = wallX > 0 ? -Math.PI / 2 : Math.PI / 2;
+        // Place on the black panel (y=1.15, x=1.41)
+        lcarsMesh.position.set(side * 1.41, 1.15, z + 1.1 * side);
+        lcarsMesh.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
         this._root.add(lcarsMesh);
 
-        // Only add to sliding door list for one side (port) per z position
-        if (wallX > 0) {
+        if (side > 0) {
           this._doors.push({ left: lDoor, right: rDoor, open: false, t: 0, triggerZ: z });
         }
       });
@@ -336,8 +323,9 @@ export class CorridorScene {
 
   // ── Containment field ───────────────────────────────────────────────────
   _buildContainmentField() {
-    // Horizontal blue plane spanning corridor at z = -3 (between first and second door)
-    const fGeo = new THREE.PlaneGeometry(2.48, 3.46);  // width × height of cross-section
+    // Horizontal blue plane spanning corridor at z = -3
+    // The cross section is roughly 2.8m wide and 2.4m high.
+    const fGeo = new THREE.PlaneGeometry(2.8, 2.4);
     this._fieldMat = new THREE.MeshBasicMaterial({
       color:       0x0055ff,
       transparent: true,
@@ -347,8 +335,8 @@ export class CorridorScene {
       depthWrite:  false,
     });
     this._fieldMesh = new THREE.Mesh(fGeo, this._fieldMat);
-    this._fieldMesh.position.set(0, 1.73, -3); // centred in corridor cross-section
-    this._fieldMesh.rotation.y = Math.PI / 2;   // face along Z
+    this._fieldMesh.position.set(0, 1.2, -3); 
+    this._fieldMesh.rotation.y = Math.PI / 2;
     this._root.add(this._fieldMesh);
 
     // Emissive frame around the field
@@ -359,10 +347,10 @@ export class CorridorScene {
       e.rotation.y = Math.PI / 2;
       this._root.add(e);
     };
-    makeEdge(0.06, 3.46,  1.24, 1.73);   // right edge
-    makeEdge(0.06, 3.46, -1.24, 1.73);   // left edge
-    makeEdge(2.48, 0.06,  0,    0.04);   // bottom edge
-    makeEdge(2.48, 0.06,  0,    3.42);   // top edge
+    makeEdge(0.06, 2.4,  1.38, 1.2);   // right edge
+    makeEdge(0.06, 2.4, -1.38, 1.2);   // left edge
+    makeEdge(2.8, 0.06,  0,    0.03);  // bottom edge
+    makeEdge(2.8, 0.06,  0,    2.37);  // top edge
 
     // LCARS "FORCE FIELD ACTIVE" panel on starboard wall
     const panelTex = this._makeFieldLCARSTexture();
@@ -370,7 +358,7 @@ export class CorridorScene {
       new THREE.PlaneGeometry(0.36, 0.26),
       new THREE.MeshBasicMaterial({ map: panelTex })
     );
-    panelMesh.position.set(1.22, 1.1, -3.55);
+    panelMesh.position.set(1.41, 1.1, -3.55);
     panelMesh.rotation.y = -Math.PI / 2;
     this._root.add(panelMesh);
   }
@@ -438,10 +426,10 @@ export class CorridorScene {
     // Phaser on wall bracket — starboard side, near z=3
     const bracketMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 });
     const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.22), bracketMat);
-    bracket.position.set(1.18, 1.35, 3.2);
+    bracket.position.set(1.38, 1.05, 3.2);
     this._root.add(bracket);
 
-    this._phaserGroup.position.set(1.16, 1.39, 3.2);
+    this._phaserGroup.position.set(1.36, 1.09, 3.2);
     this._phaserGroup.rotation.y = -Math.PI / 2;
     this._phaserGroup.userData.interactable = true;
     this._phaserGroup.userData.isPhaser     = true;
@@ -468,20 +456,12 @@ export class CorridorScene {
 
     // Corridor bends into darkness at each end — just a dark wall
     [-11, 11].forEach(z => {
-      // Full cross-section fill: two halves to match floor + arc
       const rect = new THREE.Mesh(
-        new THREE.PlaneGeometry(2.5, 2.1), capMat
+        new THREE.PlaneGeometry(3.0, 2.5), capMat
       );
-      rect.position.set(0, 1.05, z);
+      rect.position.set(0, 1.25, z);
       rect.rotation.y = z > 0 ? Math.PI : 0;
       this._root.add(rect);
-
-      // Arc cap
-      const arcCapGeo = new THREE.CircleGeometry(1.25, 12, -Math.PI / 2, Math.PI);
-      const arcCap    = new THREE.Mesh(arcCapGeo, capMat);
-      arcCap.position.set(0, 2.1, z);
-      arcCap.rotation.y = z > 0 ? Math.PI : 0;
-      this._root.add(arcCap);
     });
 
     // Fog to obscure corridor ends attractively

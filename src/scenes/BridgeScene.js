@@ -85,10 +85,10 @@ export class BridgeScene {
     // Side science / engineering stations
     const sideTitles = ['SCIENCE', 'ENGINEERING'];
     [[-4.5, 0, 0], [4.5, 0, 0]].forEach((pos, idx) => {
-      group.add(Object.assign(
-        new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.0, 0.8), panMat),
-        { position: new THREE.Vector3(...pos).setY(0.5) }
-      ));
+      const station = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.0, 0.8), panMat);
+      station.position.set(pos[0], 0.5, pos[2]);
+      group.add(station);
+      
       const screen = this._buildLCARSScreen(0.9, 0.6, sideTitles[idx]);
       screen.position.set(pos[0], 1.1, pos[2]);
       screen.rotation.x = -0.4;
