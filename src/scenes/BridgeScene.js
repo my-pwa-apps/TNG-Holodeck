@@ -9,10 +9,15 @@ export class BridgeScene {
     this._scene  = scene;
     this._audio  = audio;
     this._root   = new THREE.Group();
-    this._lcarsScreens = [];  // {mesh, canvas, ctx}
-    this._starfieldMat = null;
-    this._warpActive   = false;
-    this._warpProgress = 0;
+    this._lcarsScreens    = [];      // {canvas, ctx, tex, t, title}
+    this._starfieldMat    = null;
+    this._warpActive      = false;
+    this._warpProgress    = 0;
+    this._redAlertMode    = false;   // toggled by "computer, red alert"
+    this._redAlertTime    = 0;
+    this._starUpdateAccum = 0;       // throttle canvas redraws to ~20 fps
+    this._accentLights    = [];      // tracked for red-alert colour pulse
+    this._ceilLightMat    = null;    // emissive ceiling ring — flashes on alert
   }
 
   load() {
@@ -27,17 +32,26 @@ export class BridgeScene {
     keyLight.castShadow = true;
     this._root.add(keyLight);
 
-    // Accent lights at console positions
+    // Accent lights at console positions — tracked for red-alert pulse
     [[-3, 1, -1], [3, 1, -1], [0, 1, 2]].forEach(pos => {
       const l = new THREE.PointLight(0xFF9900, 1.5, 6);
       l.position.set(...pos);
       this._root.add(l);
+      this._accentLights.push(l);
     });
 
-    // ── Floor ────────────────────────────────────────────────────────────
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x111118, roughness: 0.6 });
-    const floorGeo = new THREE.CircleGeometry(7, 32);
+    // ── Floor — concentric-band vertex colours suggest TNG bridge carpet ──
+    const floorGeo = new THREE.CircleGeometry(7, 64);
     floorGeo.rotateX(-Math.PI / 2);
+    const floorPos = floorGeo.attributes.position;
+    const floorCols = new Float32Array(floorPos.count * 3);
+    for (let i = 0; i < floorPos.count; i++) {
+      const r = Math.sqrt(floorPos.getX(i) ** 2 + floorPos.getZ(i) ** 2) / 7;
+      const b = r < 0.28 ? 0.14 : r < 0.62 ? 0.10 : 0.07;
+      floorCols[i * 3] = b * 0.72; floorCols[i * 3 + 1] = b * 0.72; floorCols[i * 3 + 2] = b;
+    }
+    floorGeo.setAttribute('color', new THREE.Float32BufferAttribute(floorCols, 3));
+    const floorMat = new THREE.MeshStandardMaterial({ roughness: 0.75, vertexColors: true });
     this._root.add(new THREE.Mesh(floorGeo, floorMat));
 
     // ── Consoles (arc layout) ─────────────────────────────────────────────
@@ -48,6 +62,12 @@ export class BridgeScene {
 
     // ── Command chairs ────────────────────────────────────────────────────
     this._root.add(this._buildChairs());
+
+    // ── Hull envelope: walls, ceiling, Conn station, Tactical station ─────
+    this._root.add(this._buildWalls());
+    this._root.add(this._buildCeiling());
+    this._root.add(this._buildConnStation());
+    this._root.add(this._buildTacticalStation());
 
     this._scene.add(this._root);
     return this._root;
@@ -70,7 +90,8 @@ export class BridgeScene {
     group.add(conMesh);
 
     // Side stations
-    [[-4.5, 0, 0], [4.5, 0, 0]].forEach(pos => {
+    const sideTitles = ['SCIENCE', 'ENGINEERING'];
+    [[-4.5, 0, 0], [4.5, 0, 0]].forEach((pos, idx) => {
       const side = new THREE.Mesh(
         new THREE.BoxGeometry(1.2, 1.0, 0.8),
         panMat
@@ -79,8 +100,7 @@ export class BridgeScene {
       side.position.y = 0.5;
       group.add(side);
 
-      // LCARS screen on each station
-      const screen = this._buildLCARSScreen(0.9, 0.6);
+      const screen = this._buildLCARSScreen(0.9, 0.6, sideTitles[idx]);
       screen.position.set(pos[0], 1.1, pos[2]);
       screen.rotation.x = -0.4;
       group.add(screen);
@@ -90,23 +110,23 @@ export class BridgeScene {
     return group;
   }
 
-  _buildLCARSScreen(w, h) {
+  _buildLCARSScreen(w, h, title = 'TACTICAL SYS') {
     const canvas = document.createElement('canvas');
     canvas.width  = 512;
     canvas.height = 256;
     const ctx = canvas.getContext('2d');
-    this._drawLCARS(ctx, canvas.width, canvas.height, 0);
+    this._drawLCARS(ctx, canvas.width, canvas.height, 0, title);
 
     const tex  = new THREE.CanvasTexture(canvas);
     const mat  = new THREE.MeshBasicMaterial({ map: tex, side: THREE.FrontSide });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
 
-    const lcarsData = { canvas, ctx, tex, t: 0 };
+    const lcarsData = { canvas, ctx, tex, t: 0, title };
     mesh._lcarsData  = lcarsData;
     return mesh;
   }
 
-  _drawLCARS(ctx, w, h, t) {
+  _drawLCARS(ctx, w, h, t, title = 'TACTICAL SYS') {
     // TNG LCARS palette
     const C = {
       orange: '#FF9900', dark: '#CC6600',
@@ -135,7 +155,7 @@ export class BridgeScene {
 
     ctx.fillStyle = C.bg;
     ctx.font = 'bold 15px Arial Narrow, Arial';
-    ctx.fillText('TACTICAL SYSTEMS', 38, 24);
+    ctx.fillText(title, 38, 24);
     ctx.textAlign = 'right';
     ctx.fillText(`SD ${(47634 + t * 8.4).toFixed(1)}`, w - 8, 24);
     ctx.textAlign = 'left';
