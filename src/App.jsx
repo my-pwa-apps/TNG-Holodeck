@@ -17,6 +17,7 @@ const SCENES = [
   { key: 'sherlock', label: 'BAKER STREET', sub: 'PROG·ALPHA·47',   color: '#FF9900' },
   { key: 'bridge',   label: 'BRIDGE SIM',   sub: 'PROG·DELTA·12',   color: '#CC6600' },
   { key: 'alien',    label: 'ALIEN SURVEY', sub: 'PROG·GAMMA·88',   color: '#CC99FF' },
+  { key: 'corridor', label: 'CORRIDOR',     sub: 'PROG·EPSILON·7',  color: '#00BBFF' },
 ];
 
 export default function App() {

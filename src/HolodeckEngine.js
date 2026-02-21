@@ -11,6 +11,7 @@ import { HolodeckRoom }          from './scenes/HolodeckRoom.js';
 import { SherlockScene }         from './scenes/SherlockScene.js';
 import { BridgeScene }           from './scenes/BridgeScene.js';
 import { AlienScene }            from './scenes/AlienScene.js';
+import { CorridorScene }         from './scenes/CorridorScene.js';
 import { MaterializationSystem } from './systems/MaterializationSystem.js';
 import { AudioSystem }           from './systems/AudioSystem.js';
 import { VoiceSystem }           from './systems/VoiceSystem.js';
@@ -20,6 +21,7 @@ const SCENE_MAP = {
   sherlock: SherlockScene,
   bridge:   BridgeScene,
   alien:    AlienScene,
+  corridor: CorridorScene,
 };
 
 /**
@@ -118,6 +120,9 @@ export class HolodeckEngine {
     this.cameraRig = new THREE.Group();
     this.cameraRig.add(this.camera);
     this.scene.add(this.cameraRig);
+
+    // Make camera accessible to scenes via scene.userData
+    this.scene.userData.camera = this.camera;
   }
 
   // ── Post-processing ────────────────────────────────────────────────────
@@ -161,21 +166,175 @@ export class HolodeckEngine {
       grip.add(factory.createControllerModel(grip));
       this.cameraRig.add(ctrl, grip);
 
-      // Teleport ray
+      // Teleport / aim ray
       const ray = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints([
           new THREE.Vector3(0, 0, 0),
-          new THREE.Vector3(0, 0, -6),
+          new THREE.Vector3(0, 0, -8),
         ]),
-        new THREE.LineBasicMaterial({ color: 0xFFB300, transparent: true, opacity: 0.6 })
+        new THREE.LineBasicMaterial({ color: 0x88CCFF, transparent: true, opacity: 0.55 })
       );
+      ctrl.userData.ray = ray;
       ctrl.add(ray);
 
-      ctrl.addEventListener('selectstart', () => this._onGrab(ctrl));
-      ctrl.addEventListener('selectend',   () => this._onRelease());
+      ctrl.addEventListener('selectstart', () => {
+        if (i === 1) this._onPhaserFire(ctrl);
+        else         this._onGrab(ctrl);
+      });
+      ctrl.addEventListener('selectend', () => this._onRelease());
 
       return { ctrl, grip };
     });
+
+    // Snap-turn cooldown (right thumbstick, avoid continuous spinning)
+    this._snapTurnCooldown = 0;
+
+    // Per-button previous-frame pressed state for edge detection
+    // key: `${handedness}_${buttonIndex}` → boolean
+    this._btnPrev = {};
+  }
+
+  /**
+   * Poll XR gamepad buttons once per frame.
+   * Uses edge detection (prev=false → cur=true) so holding a button
+   * fires the action exactly once until released and re-pressed.
+   *
+   * Quest 3 / 3S layout
+   * ─────────────────────────────────────────────────
+   *  Left   btn[0] = X       btn[1] = Y
+   *         btn[3] = Menu    btn[5] = Grip/Squeeze
+   *  Right  btn[0] = A       btn[1] = B
+   *         btn[3] = Oculus  btn[5] = Grip/Squeeze
+   * (btn[4] = Trigger — already handled via selectstart event)
+   * ─────────────────────────────────────────────────
+   * Mapping
+   *   Left  X      → Load Corridor       (PROG·EPSILON·7)
+   *   Left  Y      → Load Bridge         (PROG·DELTA·12)
+   *   Left  Grip   → Toggle Arch
+   *   Left  Menu   → Freeze / Resume program
+   *   Right A      → Load Sherlock       (PROG·ALPHA·47)
+   *   Right B      → Load Alien          (PROG·GAMMA·88)
+   *   Right Grip   → Mute / Unmute audio (cycle 0 ↔ 0.7)
+   *   Right Menu   → Red Alert
+   */
+  _updateXRButtons() {
+    if (!this.renderer.xr.isPresenting) return;
+    const session = this.renderer.xr.getSession();
+    if (!session) return;
+
+    const store = useSceneStore.getState();
+
+    for (const src of session.inputSources) {
+      if (!src.gamepad) continue;
+      const hand = src.handedness;  // 'left' | 'right'
+      const btns = src.gamepad.buttons;
+
+      btns.forEach((btn, idx) => {
+        const key  = `${hand}_${idx}`;
+        const prev = this._btnPrev[key] ?? false;
+        const cur  = btn.pressed;
+        this._btnPrev[key] = cur;
+
+        if (!cur || prev) return;   // only act on rising edge
+
+        // ── Left controller ──────────────────────────────────
+        if (hand === 'left') {
+          if (idx === 0) {           // X → Corridor
+            this.audio.play('computer_ack');
+            store.requestScene('corridor');
+          } else if (idx === 1) {   // Y → Bridge
+            this.audio.play('computer_ack');
+            store.requestScene('bridge');
+          } else if (idx === 3) {   // Menu → Freeze/Resume
+            if (store.frozen) { store.setFrozen(false); }
+            else              { store.setFrozen(true);  }
+            this.audio.play('computer_ack');
+          } else if (idx === 5) {   // Left Grip → Toggle Arch
+            store.toggleArch();
+            this.audio.play('computer_ack');
+          }
+        }
+
+        // ── Right controller ─────────────────────────────────
+        if (hand === 'right') {
+          if (idx === 0) {           // A → Sherlock
+            this.audio.play('computer_ack');
+            store.requestScene('sherlock');
+          } else if (idx === 1) {   // B → Alien
+            this.audio.play('computer_ack');
+            store.requestScene('alien');
+          } else if (idx === 3) {   // Menu/Oculus → Red Alert
+            this._currentSceneModule?.activateRedAlert?.();
+            this.audio.play('computer_ack');
+          } else if (idx === 5) {   // Right Grip → Mute toggle
+            const vol = store.audioVolume > 0.05 ? 0 : 0.7;
+            store.setAudioVolume(vol);
+            this.audio.setVolume(vol);
+          }
+        }
+      });
+    }
+  }
+
+  _updateXRLocomotion(dt) {
+    if (!this.renderer.xr.isPresenting) return;
+    const session = this.renderer.xr.getSession();
+    if (!session) return;
+
+    const MOVE_SPEED  = 3.0;   // m/s
+    const SNAP_ANGLE  = Math.PI / 6;   // 30°
+    const SNAP_THRESH = 0.7;           // axis threshold for snap turn
+    const DEAD_ZONE   = 0.18;
+
+    // Head-forward direction projected onto XZ plane
+    const headFwd = new THREE.Vector3(0, 0, -1)
+      .applyQuaternion(this.camera.quaternion);
+    headFwd.y = 0;
+    headFwd.normalize();
+    const headRight = new THREE.Vector3().crossVectors(
+      headFwd, new THREE.Vector3(0, 1, 0)
+    ).normalize();
+
+    for (const src of session.inputSources) {
+      if (!src.gamepad) continue;
+      const axes = src.gamepad.axes; // [0]=touchX [1]=touchY [2]=thumbX [3]=thumbY
+      const ax = axes[2] ?? 0;
+      const ay = axes[3] ?? 0;
+
+      if (src.handedness === 'left') {
+        // Left stick → smooth move (forward/back + strafe)
+        const mx = Math.abs(ax) > DEAD_ZONE ? ax : 0;
+        const my = Math.abs(ay) > DEAD_ZONE ? ay : 0;
+        this.cameraRig.position.addScaledVector(headFwd,  -my * MOVE_SPEED * dt);
+        this.cameraRig.position.addScaledVector(headRight, mx * MOVE_SPEED * dt);
+      }
+
+      if (src.handedness === 'right') {
+        // Right stick → snap turn
+        this._snapTurnCooldown -= dt;
+        if (this._snapTurnCooldown <= 0) {
+          if (ax > SNAP_THRESH) {
+            this.cameraRig.rotateY(-SNAP_ANGLE);
+            this._snapTurnCooldown = 0.35;
+          } else if (ax < -SNAP_THRESH) {
+            this.cameraRig.rotateY(SNAP_ANGLE);
+            this._snapTurnCooldown = 0.35;
+          } else {
+            this._snapTurnCooldown = 0;
+          }
+        }
+      }
+    }
+  }
+
+  _onPhaserFire(controller) {
+    // Delegate to current scene if it supports phaser interactions
+    if (this._currentSceneModule?.onPhaserFire) {
+      this._currentSceneModule.onPhaserFire(controller);
+      return;
+    }
+    // Default: play audio phaser burst
+    this.audio.play?.('computer_ack');
   }
 
   // ── Scene systems ──────────────────────────────────────────────────────
@@ -321,6 +480,8 @@ export class HolodeckEngine {
 
     if (!this.frozen) {
       this._updateDesktopMovement(dt);
+      this._updateXRLocomotion(dt);
+      this._updateXRButtons();
       this.holoRoom.update(elapsed);
       this.matSys.update(dt, elapsed);
       this.arch.update(elapsed);

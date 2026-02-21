@@ -113,13 +113,35 @@ export class VoiceSystem {
       this.engine.exportGLTF?.();
       return;
     }
+
+    // "Computer, red alert" — toggle red alert mode
+    if (/computer,?\s*red\s+alert/.test(text)) {
+      this.engine._currentSceneModule?.activateRedAlert?.();
+      this.engine.audio.play('computer_ack');
+      return;
+    }
+
+    // "Computer, (engage) warp" — activate warp on bridge viewscreen
+    if (/computer,?\s*(engage\s+)?warp/.test(text)) {
+      this.engine._currentSceneModule?.activateWarp?.();
+      this.engine.audio.play('computer_ack');
+      return;
+    }
+
+    // "Computer, load corridor" short form
+    if (/computer,?\s*(load\s+)?corridor/.test(text)) {
+      this.engine.audio.play('computer_ack');
+      store.requestScene('corridor');
+      return;
+    }
   }
 
   _resolveScene(raw) {
-    if (/sherlock|baker|holmes|victorian/i.test(raw))  return 'sherlock';
-    if (/bridge|tactical|starship|enterprise/i.test(raw)) return 'bridge';
-    if (/alien|planet|landscape|survey/i.test(raw))    return 'alien';
-    if (/grid|end|standby/i.test(raw))                 return 'grid';
+    if (/sherlock|baker|holmes|victorian/i.test(raw))      return 'sherlock';
+    if (/bridge|tactical|starship|enterprise/i.test(raw))  return 'bridge';
+    if (/alien|planet|landscape|survey/i.test(raw))        return 'alien';
+    if (/corridor|deck|hallway/i.test(raw))                return 'corridor';
+    if (/grid|end|standby/i.test(raw))                     return 'grid';
     console.warn(`[VoiceSystem] Unknown scene: "${raw}"`);
     return null;
   }
