@@ -286,51 +286,48 @@ export class HolodeckEngine {
     if (!session) return;
 
     const MOVE_SPEED  = 3.0;   // m/s
-    const SNAP_ANGLE  = Math.PI / 6;   // 30°
-    const SNAP_THRESH = 0.7;           // axis threshold for snap turn
+    const TURN_SPEED  = 2.2;   // rad/s  (smooth turn on right stick)
     const DEAD_ZONE   = 0.18;
 
-    // Head-forward direction projected onto XZ plane
-    const headFwd = new THREE.Vector3(0, 0, -1)
-      .applyQuaternion(this.camera.quaternion);
+    // Use the actual XR camera world quaternion for head direction so that
+    // "forward" always matches where the player is physically looking.
+    const xrCam = this.renderer.xr.getCamera();
+    const headQuat = new THREE.Quaternion();
+    xrCam.getWorldQuaternion(headQuat);
+
+    // Project head -Z onto the XZ (ground) plane
+    const headFwd = new THREE.Vector3(0, 0, -1).applyQuaternion(headQuat);
     headFwd.y = 0;
-    if (headFwd.lengthSq() > 0.001) {
-      headFwd.normalize();
-    } else {
-      headFwd.set(0, 0, -1);
-    }
-    
-    const headRight = new THREE.Vector3().crossVectors(
-      headFwd, new THREE.Vector3(0, 1, 0)
-    ).normalize();
+    headFwd.lengthSq() > 0.001 ? headFwd.normalize() : headFwd.set(0, 0, -1);
+
+    const headRight = new THREE.Vector3()
+      .crossVectors(headFwd, new THREE.Vector3(0, 1, 0))
+      .normalize();
 
     for (const src of session.inputSources) {
       if (!src.gamepad) continue;
-      const axes = src.gamepad.axes; // [0]=touchX [1]=touchY [2]=thumbX [3]=thumbY
+      // Quest 3 / Touch Pro: axes [2]=thumbstick-X  [3]=thumbstick-Y
+      // (axes [0] and [1] are the capacitive-touch position, ignore them)
+      const axes = src.gamepad.axes;
       const ax = axes[2] ?? 0;
       const ay = axes[3] ?? 0;
 
       if (src.handedness === 'left') {
-        // Left stick → smooth move (forward/back + strafe)
+        // Left stick → smooth translation in head-look direction
+        //   stick-Y: forward (-1) / back (+1)  →  negate ay to get natural forward
+        //   stick-X: strafe right (+1) / left (-1)
         const mx = Math.abs(ax) > DEAD_ZONE ? ax : 0;
         const my = Math.abs(ay) > DEAD_ZONE ? ay : 0;
         this.cameraRig.position.addScaledVector(headFwd,  -my * MOVE_SPEED * dt);
-        this.cameraRig.position.addScaledVector(headRight, mx * MOVE_SPEED * dt);
+        this.cameraRig.position.addScaledVector(headRight,  mx * MOVE_SPEED * dt);
       }
 
       if (src.handedness === 'right') {
-        // Right stick → snap turn
-        this._snapTurnCooldown -= dt;
-        if (this._snapTurnCooldown <= 0) {
-          if (ax > SNAP_THRESH) {
-            this.cameraRig.rotateY(-SNAP_ANGLE);
-            this._snapTurnCooldown = 0.35;
-          } else if (ax < -SNAP_THRESH) {
-            this.cameraRig.rotateY(SNAP_ANGLE);
-            this._snapTurnCooldown = 0.35;
-          } else {
-            this._snapTurnCooldown = 0;
-          }
+        // Right stick → smooth continuous yaw on the rig
+        //   stick-X: turn right (+1) / left (-1)
+        const rx = Math.abs(ax) > DEAD_ZONE ? ax : 0;
+        if (rx !== 0) {
+          this.cameraRig.rotateY(-rx * TURN_SPEED * dt);
         }
       }
     }
