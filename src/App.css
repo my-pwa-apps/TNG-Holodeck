@@ -1,0 +1,157 @@
+#holodeck-canvas {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100vw !important;
+  height: 100vh !important;
+}
+
+/* ── HUD overlay ────────────────────────────────────────── */
+#hud {
+  position:       fixed;
+  inset:          0;
+  pointer-events: none;   /* let clicks pass to canvas by default */
+  z-index:        10;
+  font-family:    'Arial', sans-serif;
+}
+
+#hud-status {
+  position:       absolute;
+  top:            16px;
+  left:           16px;
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+  pointer-events: none;
+}
+
+#hud-actions {
+  position:       absolute;
+  top:            16px;
+  right:          80px;   /* leave space for VR button */
+  display:        flex;
+  gap:            8px;
+  align-items:    center;
+  pointer-events: all;
+}
+
+#hud-log {
+  position:       absolute;
+  bottom:         48px;
+  left:           16px;
+  width:          320px;
+  pointer-events: none;
+}
+
+#hud-hint {
+  position:       absolute;
+  bottom:         16px;
+  left:           50%;
+  transform:      translateX(-50%);
+  font-size:      10px;
+  letter-spacing: 0.08em;
+  color:          rgba(255,179,0,0.5);
+  pointer-events: none;
+}
+
+.frozen-badge {
+  background:  rgba(0, 80, 180, 0.85);
+  color:       #88CCFF;
+  font-size:   11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding:     4px 10px;
+  border-radius: 4px;
+  border:      1px solid #3399FF;
+  animation:   frozenPulse 1s ease-in-out infinite;
+}
+
+@keyframes frozenPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* ── Panels (scene selector / settings) ─────────────────── */
+#scene-panel,
+#settings-panel {
+  position:       fixed;
+  top:            50%;
+  left:           50%;
+  transform:      translate(-50%, -50%);
+  background:     rgba(0, 0, 0, 0.94);
+  border:         1px solid #FF9900;
+  border-radius:  4px;
+  padding:        20px;
+  min-width:      340px;
+  z-index:        20;
+  display:        flex;
+  flex-direction: column;
+  gap:            14px;
+  box-shadow:     0 0 40px rgba(255,179,0,0.3);
+}
+
+.scene-panel__grid {
+  display:               grid;
+  grid-template-columns: 1fr 1fr;
+  gap:                   12px;
+}
+
+.scene-card {
+  background:    rgba(0,0,0,0.8);
+  border:        1px solid var(--card-color, #FF9900);
+  border-radius: 6px;
+  height:        80px;
+  display:       flex;
+  align-items:   flex-end;
+  padding:       8px;
+  cursor:        pointer;
+  position:      relative;
+  overflow:      hidden;
+  transition:    box-shadow 0.2s, transform 0.15s;
+}
+
+.scene-card:hover {
+  box-shadow: 0 0 16px var(--card-color, #FF9900);
+  transform:  scale(1.03);
+}
+
+.scene-card__label {
+  font-size:      11px;
+  font-weight:    700;
+  letter-spacing: 0.08em;
+  color:          var(--card-color, #FF9900);
+  text-transform: uppercase;
+}
+
+/* ── Settings rows ───────────────────────────────────────── */
+.settings-row {
+  display:     flex;
+  align-items: center;
+  gap:         14px;
+  font-size:   12px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color:       #FF9900;
+}
+
+.settings-row span {
+  min-width: 110px;
+}
+
+.settings-row__btns {
+  display: flex;
+  gap:     6px;
+}
+
+.settings-slider {
+  flex:    1;
+  accent-color: #FF9900;
+  cursor:  pointer;
+}
+
+/* ── VR button override (Three.js injects this) ─────────── */
+#VRButton {
+  bottom:     20px !important;
+  right:      20px !important;
+  font-family: 'Arial', sans-serif !important;
+}

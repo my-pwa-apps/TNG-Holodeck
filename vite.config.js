@@ -1,0 +1,19 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import glsl from 'vite-plugin-glsl';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    glsl({ include: ['**/*.vert', '**/*.frag', '**/*.glsl'] }),
+  ],
+  server: {
+    https: false, // WebXR requires HTTPS in production; use ngrok or similar for Quest testing
+    host: true,
+    port: 5173,
+  },
+  build: {
+    target: 'esnext',
+    sourcemap: true,
+  },
+});

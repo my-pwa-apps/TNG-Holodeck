@@ -1,0 +1,113 @@
+/* ═══════════════════════════════════════════════════════════
+   LCARS Design System
+   Palette: #FF9900 (primary) | #CC6600 (dark) | #3399FF (blue)
+            #CC99FF (purple)   | #000000 (bg)
+   ═══════════════════════════════════════════════════════════ */
+
+.lcars-btn {
+  background:    var(--btn-color, #FF9900);
+  color:         #000;
+  font-family:   'Arial', sans-serif;
+  font-size:     13px;
+  font-weight:   700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border:        none;
+  border-radius: 20px;
+  padding:       8px 18px;
+  cursor:        pointer;
+  position:      relative;
+  overflow:      hidden;
+  transition:    filter 0.1s, transform 0.08s;
+  box-shadow:    0 0 8px var(--btn-color, #FF9900);
+}
+
+.lcars-btn::after {
+  content:    '';
+  position:   absolute;
+  inset:      0;
+  background: rgba(255,255,255,0.12);
+  opacity:    0;
+  transition: opacity 0.1s;
+}
+
+.lcars-btn:hover  { filter: brightness(1.25); }
+.lcars-btn:hover::after { opacity: 1; }
+.lcars-btn:active { transform: scale(0.96); }
+
+.lcars-btn--small {
+  font-size: 11px;
+  padding:   5px 12px;
+}
+
+/* ── Title bar ─────────────────────────────────────────── */
+.lcars-title {
+  color:         #000;
+  font-family:   'Arial', sans-serif;
+  font-size:     12px;
+  font-weight:   700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding:       6px 14px;
+  border-radius: 20px 20px 0 0;
+}
+
+/* ── Data display ──────────────────────────────────────── */
+.lcars-display {
+  background:  #000;
+  border:      1px solid #FF9900;
+  padding:     6px 10px;
+  font-family: 'Courier New', monospace;
+  font-size:   11px;
+  color:       #FF9900;
+  min-height:  48px;
+  max-height:  120px;
+  overflow-y:  auto;
+}
+
+.lcars-display__line + .lcars-display__line {
+  margin-top: 3px;
+}
+
+/* ── Safety badge ──────────────────────────────────────── */
+.safety-badge {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  background:  rgba(0,0,0,0.75);
+  border:      1px solid #00FF88;
+  border-radius: 4px;
+  padding:     4px 10px;
+  font-family: 'Arial', sans-serif;
+  font-size:   11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color:       #00FF88;
+}
+
+.safety-badge__dot {
+  width:        8px;
+  height:       8px;
+  border-radius: 50%;
+  background:   #00FF88;
+  box-shadow:   0 0 6px #00FF88;
+  animation:    safePulse 2s ease-in-out infinite;
+}
+
+@keyframes safePulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* ── Program status ────────────────────────────────────── */
+.program-status {
+  font-family:   'Arial', sans-serif;
+  font-size:     10px;
+  font-weight:   700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color:         #3399FF;
+  background:    rgba(0,0,0,0.7);
+  border-left:   3px solid #3399FF;
+  padding:       4px 10px;
+}
