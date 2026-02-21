@@ -65,7 +65,26 @@ export class HolodeckEngine {
     this.renderer.outputColorSpace   = THREE.SRGBColorSpace;
     this.renderer.toneMapping        = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
-    this.renderer.xr.enabled         = true;
+    this.renderer.xr.enabled = true;
+
+    // ── Quest 3S optimisations ───────────────────────────────────────────
+    // Fixed foveated rendering: renders full quality in centre of view
+    // (where eye gaze is focused) and reduced quality at periphery.
+    // Level 1 = maximum foveation, ideal for Quest 3S standalone.
+    this.renderer.xr.setFoveation(1);
+
+    // Framebuffer scale: 0.9 reduces render resolution by ~10%.
+    // Quest 3S native: 1832×1920 per eye. At 0.9 = 1649×1728 — still crisp
+    // at headset PPD but saves ~19% fill-rate budget (significant for bloom-like scenes).
+    this.renderer.xr.setFramebufferScaleFactor(0.9);
+
+    // XR session start: switch to Quest 3S performance profile
+    this.renderer.xr.addEventListener('sessionstart', () => {
+      this._onXRSessionStart();
+    });
+    this.renderer.xr.addEventListener('sessionend', () => {
+      this._onXRSessionEnd();
+    });
 
     // Append VR button to body
     const vrBtn = VRButton.createButton(this.renderer);
@@ -186,12 +205,35 @@ export class HolodeckEngine {
 
   _applyQuality(q) {
     const presets = {
-      low:    { bloomStrength: 0.6,  shadowSize: 512  },
-      medium: { bloomStrength: 1.4,  shadowSize: 1024 },
-      high:   { bloomStrength: 2.0,  shadowSize: 2048 },
+      low:    { bloomStrength: 0.6,  bloomRadius: 0.4, bloomThreshold: 0.25 },
+      medium: { bloomStrength: 1.4,  bloomRadius: 0.6, bloomThreshold: 0.18 },
+      high:   { bloomStrength: 2.2,  bloomRadius: 0.7, bloomThreshold: 0.15 },
     };
     const p = presets[q] || presets.medium;
-    this.bloomPass.strength = p.bloomStrength;
+    this.bloomPass.strength  = p.bloomStrength;
+    this.bloomPass.radius    = p.bloomRadius;
+    this.bloomPass.threshold = p.bloomThreshold;
+  }
+
+  // ── Quest 3S XR performance mode ──────────────────────────────────────
+  _onXRSessionStart() {
+    // In XR: disable EffectComposer (already bypassed in _animate),
+    // reduce shadow maps, lower tone mapping exposure slightly.
+    this.renderer.shadowMap.type    = THREE.BasicShadowMap; // fastest
+    this.renderer.toneMappingExposure = 0.85; // compensate for HDR in headset
+
+    // Tell MaterializationSystem to drop to XR particle budget
+    if (this.matSys) this.matSys.setXRMode(true);
+
+    useSceneStore.getState().setProgramRunning(
+      (useSceneStore.getState().programRunning || '') + ' — XR'
+    );
+  }
+
+  _onXRSessionEnd() {
+    this.renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+    this.renderer.toneMappingExposure = 1.0;
+    if (this.matSys) this.matSys.setXRMode(false);
   }
 
   // ── Scene loading ──────────────────────────────────────────────────────

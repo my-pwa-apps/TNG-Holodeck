@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import matVert from '../shaders/materialization.vert';
 import matFrag from '../shaders/materialization.frag';
 
-const PARTICLE_COUNT = 40_000;
+const PARTICLE_COUNT_DESKTOP = 20_000;  // desktop / high-end
+const PARTICLE_COUNT_XR      = 8_000;   // Quest 3S standalone budget
 const DURATION_IN    = 2.5;  // seconds
 const DURATION_OUT   = 1.8;
 
@@ -13,17 +14,29 @@ const DURATION_OUT   = 1.8;
  */
 export class MaterializationSystem {
   constructor(scene) {
-    this._scene    = scene;
+    this._scene     = scene;
     this._particles = null;
     this._material  = null;
     this._progress  = 0;
     this._direction = 1;    // +1 = materialise, -1 = dematerialise
     this._active    = false;
     this._onComplete = null;
+    this._particleCount = PARTICLE_COUNT_DESKTOP;
+    this._build();
+  }
+
+  setXRMode(xr) {
+    // Rebuild particle system at the appropriate budget.
+    // Called on XR session start/end from HolodeckEngine.
+    const newCount = xr ? PARTICLE_COUNT_XR : PARTICLE_COUNT_DESKTOP;
+    if (newCount === this._particleCount) return;
+    this.dispose();
+    this._particleCount = newCount;
     this._build();
   }
 
   _build() {
+    const PARTICLE_COUNT = this._particleCount;
     const positions  = new Float32Array(PARTICLE_COUNT * 3);
     const targets    = new Float32Array(PARTICLE_COUNT * 3);
     const offsets    = new Float32Array(PARTICLE_COUNT * 3);
@@ -107,6 +120,7 @@ export class MaterializationSystem {
     box.getSize(size);
     box.getCenter(center);
 
+    const PARTICLE_COUNT = this._particleCount;
     const targets = this._particles.geometry.attributes.aTargetPosition;
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const i3 = i * 3;
