@@ -344,7 +344,7 @@ function buildDoors(mats, doorsOut) {
     dg.position.set(Math.sin(angle) * wallR, 0, Math.cos(angle) * wallR);
     dg.rotation.set(0, faceR, 0);
     g.add(dg);
-    doorsOut.push({ lp, rp, angle, wallR, open: false, t: 0 });
+    doorsOut.push({ leftPanel: lp, rightPanel: rp, theta: angle, wallR, open: false, t: 0 });
   }
   return g;
 }
