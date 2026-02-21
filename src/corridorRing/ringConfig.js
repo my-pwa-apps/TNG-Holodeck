@@ -28,48 +28,52 @@ export const RING = {
   get outerR()  { return this.radius + this.halfWidth; },   // 11.10 m
   get totalH()  { return this.wallHeight + this.archHeight; },
 
-  // ── Modular segments (rib spacing) ────────────────────────────────────
-  segArc:    2.4,           // slightly tighter rib spacing (was 2.7)
+  // ── Modular segments ─────────────────────────────────────────────────
+  segArc:    2.6,           // arc length per rib bay (~2.6 m)
   get segCount() { return Math.ceil(TAU * this.radius / this.segArc); },
 
   lcarsEvery:  5,
   doorEvery:   7,
 
-  // ── Wall section heights ────────────────────────────────────────────────
-  baseH:    0.32,           // large luminous base panel height
-  railH:    0.85,           // handrail height
-  bandLow:  1.20,           // black band bottom
-  bandHigh: 1.80,           // black band top
+  // ── Wall section heights (matched to reference image) ─────────────────
+  // Image: ~0.20m bright baseboard, black band at ~1.0–1.32m, flat ceiling at ~2.5m
+  baseH:    0.20,           // luminous white baseboard (0 → baseH)
+  bandLow:  0.98,           // black recessed band bottom
+  bandHigh: 1.30,           // black recessed band top
+  railH:    1.08,           // handrail centre height (upper edge of black band)
+  wallHeight: 2.50,         // flat ceiling height (overrides room.wallHeight)
 
   // ── Door labels (cycled) ───────────────────────────────────────────────
   doorLabels: [
-    'ENGINEERING', 'SCIENCE LAB', 'TURBOLIFT',
-    'MEDICAL', 'CREW QUARTERS', 'CARGO BAY',
+    'CREW QUARTERS', 'SCIENCE LAB', 'TURBOLIFT',
+    'SICKBAY', 'ENGINEERING', 'CARGO BAY',
   ],
 
-  // ── Colour palette (Ref: TNG Engineering/Lower Deck corridor) ─────────
+  // ── Colour palette (matched to reference render) ──────────────────────
   palette: {
-    // Floor: Blue centre path, pink/mauve edges
-    carpetMain:    0xB09CA6,   // pink/mauve (now the outer main carpet)
-    carpetStripe:  0x6E7D96,   // blue-grey (now the centre path)
+    // Floor — blue-grey centre, pink/mauve edges
+    carpetMain:    0xB09090,   // pink/mauve side panels
+    carpetStripe:  0x7888A0,   // blue-grey centre path
 
-    // Walls
-    wallPanel:     0x999DA0,   // light cool grey panels (glossy plastic look)
-    wallBlack:     0x080808,   // deep black recessed band
+    // Walls (symmetric both sides)
+    wallPanel:     0x7A7E84,   // medium-dark cool grey (horizontal panels)
+    wallBlack:     0x080808,   // deep black recessed horizontal band
 
-    // Baseboard light (large, bright white)
-    baseboard:     0xFFFFFF,
+    // Bright white luminous baseboard strip
+    baseboard:     0xF4F4F4,
 
-    // Structural elements
-    rib:           0xD4C4A0,   // tan/beige structural frames
-    handrail:      0x4A2510,   // dark reddish-mahogany
+    // Structural portal frames (warm tan/sandy beige)
+    rib:           0xC8B898,
 
-    // Ceiling
-    ceiling:       0xCCCCCC,   // structural ceiling background
-    ceilPanel:     0xFFF8F0,   // bright white ceiling light panels
+    // Multi-rail mahogany handrail (outer wall)
+    handrail:      0x3C1A08,
+
+    // Ceiling — flat ceiling surface + bright light panels
+    ceiling:       0xA8AAAC,   // cool grey ceiling structural surface
+    ceilPanel:     0xF8F8F8,   // bright white recessed ceiling light tiles
 
     // Doors
-    doorFrame:     0xD4C4A0,   // matches ribs
-    doorPanel:     0xB0B0B0,   // metallic grey
+    doorFrame:     0xC8B898,   // match ribs
+    doorPanel:     0x8A8E94,   // dark grey sliding panels
   },
 };

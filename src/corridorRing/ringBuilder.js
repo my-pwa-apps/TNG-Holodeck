@@ -1,14 +1,19 @@
 /**
- * ringBuilder.js — procedural Enterprise-D Lower Deck / Engineering corridor.
+ * ringBuilder.js — Enterprise-D circular corridor.
  *
- * Aesthetic reference: TNG Engineering/Tech corridor styling —
- *   • Asymmetrical walls:
- *       INNER: Stacked rounded "cushion" panels (grey metallic).
- *       OUTER: Continuous black display/window band + mahogany handrail.
- *   • Large luminous white baseboard panels (0.3m high).
- *   • Tan/beige structural frames (ribs) with "Y" or "T" top profile.
- *   • Floor: Blue centre path, pink/mauve edges.
- *   • Ceiling: Flat angular ribs with large white backlit panels.
+ * Reference: TNG corridor render showing:
+ *   • Both walls SYMMETRIC: stacked cool-grey horizontal panels,
+ *     deep black recessed band at mid-wall (~1.0–1.3 m), bright white
+ *     luminous baseboard strip at floor level.
+ *   • Portal-frame RIBS every ~2.6 m: tan/beige two-column frames with
+ *     flat ceiling crossbeam, columns flare into organic bracket caps.
+ *   • FLAT ceiling (not arched) with large bright-white recessed light tiles.
+ *   • Outer wall multi-rail mahogany HANDRAIL (3 stacked horizontal rails).
+ *   • Floor: blue-grey centre carpet, pink/mauve diagonal-edged side panels.
+ *
+ * Performance (Quest 3/3S):
+ *   ≤ 35 draw calls — InstancedMesh for ribs, wall bands, ceiling tiles.
+ *   ≤ 3 lights, no shadows.
  */
 
 import * as THREE from 'three';
@@ -20,49 +25,51 @@ const _obj = new THREE.Object3D();
 function makeMat(color, opts = {}) {
   return new THREE.MeshStandardMaterial({
     color,
-    roughness: opts.roughness ?? 0.5,
-    metalness: opts.metalness ?? 0.2, // slightly metallic "plastic" look
+    roughness: opts.roughness ?? 0.72,
+    metalness: opts.metalness ?? 0.10,
     side:      opts.side      ?? THREE.FrontSide,
     ...opts,
   });
 }
 
+// ═══════════════════════════════════════════════════════════════
 export function buildCorridorRing() {
   const root = new THREE.Group();
   const P    = RING.palette;
 
   const mats = {
-    // Floor
-    carpetMain:   makeMat(P.carpetMain,   { roughness: 0.9, metalness: 0.05 }),
-    carpetPath:   makeMat(P.carpetStripe, { roughness: 0.9, metalness: 0.05 }),
+    carpetMain:   makeMat(P.carpetMain,   { roughness: 0.95, metalness: 0 }),
+    carpetPath:   makeMat(P.carpetStripe, { roughness: 0.95, metalness: 0 }),
 
-    // Walls
-    wallBase:     new THREE.MeshStandardMaterial({
-      color: P.baseboard, emissive: P.baseboard, emissiveIntensity: 1.5, roughness: 0.4
-    }),
-    wallPanel:    makeMat(P.wallPanel, { roughness: 0.4, metalness: 0.3 }),
-    wallBlack:    makeMat(P.wallBlack, { roughness: 0.2, metalness: 0.8 }), // Glossy screen/window
-
-    // Structure
-    rib:          makeMat(P.rib,       { roughness: 0.7, metalness: 0.1 }),
-    handrail:     makeMat(P.handrail,  { roughness: 0.3, metalness: 0.1 }),
-
-    // Ceiling
-    ceiling:      makeMat(P.ceiling,   { roughness: 0.8 }),
-    ceilLight:    new THREE.MeshStandardMaterial({
-      color: P.ceilPanel, emissive: P.ceilPanel, emissiveIntensity: 1.2, roughness: 0.4
+    // Both walls share same materials; side set per-mesh
+    wallPanel:    makeMat(P.wallPanel,  { roughness: 0.55, metalness: 0.25 }),
+    wallBlack:    makeMat(P.wallBlack,  { roughness: 0.15, metalness: 0.60 }),
+    baseboard: new THREE.MeshStandardMaterial({
+      color: new THREE.Color(P.baseboard),
+      emissive: new THREE.Color(P.baseboard),
+      emissiveIntensity: 2.2, roughness: 0.35,
     }),
 
-    doorFrame:    makeMat(P.doorFrame, { roughness: 0.6 }),
-    doorPanel:    makeMat(P.doorPanel, { roughness: 0.5, metalness: 0.4 }),
+    rib:      makeMat(P.rib,      { roughness: 0.65, metalness: 0.05 }),
+    handrail: makeMat(P.handrail, { roughness: 0.30, metalness: 0.05 }),
+
+    ceiling:   makeMat(P.ceiling,   { roughness: 0.80, metalness: 0 }),
+    ceilPanel: new THREE.MeshStandardMaterial({
+      color: new THREE.Color(P.ceilPanel),
+      emissive: new THREE.Color(P.ceilPanel),
+      emissiveIntensity: 1.6, roughness: 0.40,
+    }),
+
+    doorFrame: makeMat(P.doorFrame, { roughness: 0.65, metalness: 0.05 }),
+    doorPanel: makeMat(P.doorPanel, { roughness: 0.50, metalness: 0.35 }),
   };
 
   const doors     = [];
-  const resources = { doors, mats, ceilLightMat: mats.ceilLight, accentLights: [] };
+  const resources = { doors, mats, ceilLightMat: mats.ceilPanel, accentLights: [] };
 
   root.add(buildFloor(mats));
-  root.add(buildOuterWall(mats));  // Window/display wall
-  root.add(buildInnerWall(mats));  // Stacked equipment panel wall
+  root.add(buildWall(mats, true));    // inner wall (FrontSide)
+  root.add(buildWall(mats, false));   // outer wall (BackSide) + handrail
   root.add(buildCeiling(mats));
   root.add(buildRibs(mats));
   root.add(buildDoors(mats, doors));
@@ -71,22 +78,22 @@ export function buildCorridorRing() {
   return { root, resources };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  FLOOR — Pink outer edges (base), wide Blue centre path
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+//  FLOOR — blue-grey centre, pink/mauve sides
+// ═══════════════════════════════════════════════════════════════
 
 function buildFloor(mats) {
   const g = new THREE.Group();
   const { innerR, outerR, radius, segments } = RING;
 
-  // Pink/mauve base (full width)
+  // Pink/mauve base — full corridor width  
   const baseGeo = new THREE.RingGeometry(innerR, outerR, segments);
   baseGeo.rotateX(-Math.PI / 2);
   g.add(new THREE.Mesh(baseGeo, mats.carpetMain));
 
-  // Blue centre path (approx 1.4m wide)
-  const pathHalfW = 0.7;
-  const pathGeo = new THREE.RingGeometry(radius - pathHalfW, radius + pathHalfW, segments);
+  // Blue-grey centre path: ~1.6 m wide
+  const hw = 0.80;
+  const pathGeo = new THREE.RingGeometry(radius - hw, radius + hw, segments);
   pathGeo.rotateX(-Math.PI / 2);
   const path = new THREE.Mesh(pathGeo, mats.carpetPath);
   path.position.y = 0.002;
@@ -95,215 +102,159 @@ function buildFloor(mats) {
   return g;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  OUTER WALL (BackSide) — Continuous black band, handrail, luminous base
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+//  WALL  (symmetric on inner and outer)
+//
+//  Bands (bottom → top):
+//    [0 → baseH]          bright white luminous baseboard
+//    [baseH → bandLow]    cool-grey lower horizontal panels
+//    [bandLow → bandHigh] deep-black recessed band (±0.04 m inset)
+//    [bandHigh → wH]      cool-grey upper horizontal panels
+//
+//  isInner = true  → innerR, FrontSide
+//  isInner = false → outerR, BackSide + mahogany multi-rail handrail
+// ═══════════════════════════════════════════════════════════════
 
-function buildOuterWall(mats) {
+function buildWall(mats, isInner) {
   const g = new THREE.Group();
-  const { outerR, baseH, bandLow, bandHigh, wallHeight, segments } = RING;
+  const { baseH, bandLow, bandHigh, wallHeight: wH, segments } = RING;
+  const r       = isInner ? RING.innerR : RING.outerR;
+  const side    = isInner ? THREE.FrontSide : THREE.BackSide;
+  // Black band recesses slightly away from corridor centre
+  const bandR   = isInner ? r - 0.04 : r + 0.04;
 
-  // 1. Luminous Base (0 -> baseH)
-  const baseGeo = new THREE.CylinderGeometry(outerR, outerR, baseH, segments, 1, true);
-  const base = new THREE.Mesh(baseGeo, mats.wallBase);
-  base.material.side = THREE.BackSide;
-  base.position.y = baseH / 2;
-  g.add(base);
+  // Clone wall material with correct side
+  const panelMat = mats.wallPanel.clone();
+  panelMat.side  = side;
+  const blackMat = mats.wallBlack.clone();
+  blackMat.side  = side;
+  const baseMat  = mats.baseboard.clone();
+  baseMat.side   = side;
 
-  // 2. Lower Grey Panel (baseH -> bandLow)
-  const lowerH = bandLow - baseH;
-  const lowerGeo = new THREE.CylinderGeometry(outerR, outerR, lowerH, segments, 1, true);
-  const lower = new THREE.Mesh(lowerGeo, mats.wallPanel);
-  lower.material.side = THREE.BackSide;
-  lower.position.y = baseH + lowerH / 2;
-  g.add(lower);
-
-  // 3. Black Band (bandLow -> bandHigh) — slightly recessed?
-  // Make it flush or slightly recessed. Let's recess it 0.05m outward (larger R).
-  const bandR = outerR + 0.05;
-  const bandH = bandHigh - bandLow;
-  const bandGeo = new THREE.CylinderGeometry(bandR, bandR, bandH, segments, 1, true);
-  const band = new THREE.Mesh(bandGeo, mats.wallBlack);
-  band.material.side = THREE.BackSide;
-  band.position.y = bandLow + bandH / 2;
-  g.add(band);
-
-  // 4. Upper Grey Panel (bandHigh -> wallHeight)
-  const upperH = wallHeight - bandHigh;
-  const upperGeo = new THREE.CylinderGeometry(outerR, outerR, upperH, segments, 1, true);
-  const upper = new THREE.Mesh(upperGeo, mats.wallPanel);
-  upper.material.side = THREE.BackSide;
-  upper.position.y = bandHigh + upperH / 2;
-  g.add(upper);
-
-  // 5. Handrail (at RING.railH)
-  const railGeo = new THREE.TorusGeometry(outerR - 0.08, 0.04, 8, segments);
-  railGeo.rotateX(Math.PI / 2);
-  const rail = new THREE.Mesh(railGeo, mats.handrail);
-  rail.position.y = RING.railH;
-  g.add(rail);
-
-  return g;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-//  INNER WALL (FrontSide) — Stacked "cushion" panels, No black band
-// ═══════════════════════════════════════════════════════════════════════════
-
-function buildInnerWall(mats) {
-  const g = new THREE.Group();
-  const { innerR, baseH, wallHeight, segments, segCount } = RING;
-
-  // 1. Luminous Base (continuous)
-  const baseGeo = new THREE.CylinderGeometry(innerR, innerR, baseH, segments, 1, true);
-  const base = new THREE.Mesh(baseGeo, mats.wallBase);
-  base.position.y = baseH / 2;
-  g.add(base);
-
-  // 2. Stacked Panels (InstancedMesh)
-  // We place distinct puffy panels between ribs.
-  // Area: baseH -> wallHeight.
-  // Let's stack 2 large panels vertically.
-  // Z-arc per panel: slightly less than segArc.
-  const panelH = (wallHeight - baseH) / 2 - 0.05; // gap
-  const panelW = RING.segArc * 0.9;
-  const panelD = 0.15; // thickness (puffy)
-
-  const boxGeo = new THREE.BoxGeometry(panelW, panelH, panelD);
-  // Position origin at back-center for easier placement
-  boxGeo.translate(0, 0, -panelD / 2);
-
-  const count = segCount * 2; // 2 rows per segment
-  const panels = new THREE.InstancedMesh(boxGeo, mats.wallPanel, count);
-
-  let idx = 0;
-  for (let s = 0; s < segCount; s++) {
-    const angle = (s + 0.5) / segCount * TAU; // center of bay
-
-    // Row 1 (Lower)
-    _obj.position.set(
-      Math.sin(angle) * innerR,
-      baseH + 0.05 + panelH / 2,
-      Math.cos(angle) * innerR
-    );
-    _obj.rotation.set(0, angle, 0);
-    _obj.updateMatrix();
-    panels.setMatrixAt(idx++, _obj.matrix);
-
-    // Row 2 (Upper)
-    _obj.position.set(
-      Math.sin(angle) * innerR,
-      baseH + 0.05 + panelH + 0.05 + panelH / 2,
-      Math.cos(angle) * innerR
-    );
-    _obj.rotation.set(0, angle, 0);
-    _obj.updateMatrix();
-    panels.setMatrixAt(idx++, _obj.matrix);
+  function cyl(radius, y0, h, mat) {
+    const geo  = new THREE.CylinderGeometry(radius, radius, h, segments, 1, true);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.y = y0 + h / 2;
+    g.add(mesh);
   }
-  panels.instanceMatrix.needsUpdate = true;
-  g.add(panels);
 
-  // 3. Handrail (Optional on inner wall? Image shows it on both, but maybe distinct style)
-  // Let's add a simple rail to match.
-  const railGeo = new THREE.TorusGeometry(innerR + 0.08, 0.04, 8, segments);
-  railGeo.rotateX(Math.PI / 2);
-  const rail = new THREE.Mesh(railGeo, mats.handrail);
-  rail.position.y = RING.railH;
-  g.add(rail);
+  cyl(r,      0,        baseH,            baseMat);               // luminous baseboard
+  cyl(r,      baseH,    bandLow - baseH,  panelMat);              // lower panels
+  cyl(bandR,  bandLow,  bandHigh-bandLow, blackMat);              // black recessed band
+  cyl(r,      bandHigh, wH - bandHigh,    panelMat);              // upper panels
+
+  // Thin horizontal groove rings dividing lower panels into 2 rows
+  const grooveY = baseH + (bandLow - baseH) * 0.50;
+  const grooveMat = mats.wallBlack.clone();
+  grooveMat.side  = side;
+  const gGeo = new THREE.CylinderGeometry(r, r, 0.025, segments, 1, true);
+  const groove = new THREE.Mesh(gGeo, grooveMat);
+  groove.position.y = grooveY;
+  g.add(groove);
+
+  // Outer wall only: multi-rail mahogany handrail (3 horizontal rails)
+  if (!isInner) {
+    const railR   = RING.outerR - 0.06;
+    const railH   = RING.railH;
+    const spacing = 0.055;
+    for (let i = -1; i <= 1; i++) {
+      const railGeo = new THREE.TorusGeometry(railR, 0.018, 6, segments);
+      railGeo.rotateX(Math.PI / 2);
+      const rail = new THREE.Mesh(railGeo, mats.handrail);
+      rail.position.y = railH + i * spacing;
+      g.add(rail);
+    }
+  }
 
   return g;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  CEILING — Flat ribs with backlit panels
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+//  CEILING — flat ring surface + bright rectangular light tiles
+// ═══════════════════════════════════════════════════════════════
 
 function buildCeiling(mats) {
   const g = new THREE.Group();
-  const { segCount, radius, wallHeight } = RING;
-  
-  // Create a lattice of lights between ribs.
-  // Panels are trapezoidal segments.
-  const panelLen = 1.8; // Radial length across corridor
-  const panelWid = RING.segArc * 0.85; 
+  const { innerR, outerR, radius, segments, segCount, wallHeight: wH } = RING;
 
-  const boxGeo = new THREE.BoxGeometry(panelWid, 0.05, panelLen);
-  const lights = new THREE.InstancedMesh(boxGeo, mats.ceilLight, segCount);
+  // Flat ring ceiling surface
+  const ceilGeo = new THREE.RingGeometry(innerR, outerR, segments);
+  ceilGeo.rotateX(Math.PI / 2);   // face downward
+  const ceilMesh = new THREE.Mesh(ceilGeo, mats.ceiling);
+  ceilMesh.position.y = wH;
+  g.add(ceilMesh);
+
+  // Recessed light tiles between rib bays (InstancedMesh)
+  const tileLen   = 1.50;   // radial span (across corridor)
+  const segArcLen = TAU * radius / segCount;
+  const tileWid   = segArcLen * 0.64;  // along corridor direction
+
+  const tileGeo = new THREE.BoxGeometry(tileWid, 0.025, tileLen);
+  const tiles   = new THREE.InstancedMesh(tileGeo, mats.ceilPanel, segCount);
 
   for (let s = 0; s < segCount; s++) {
-    const angle = (s + 0.5) / segCount * TAU;
+    const angle = (s + 0.5) / segCount * TAU;   // halfway between ribs
     _obj.position.set(
       Math.sin(angle) * radius,
-      wallHeight + 0.1, // Just above wall top
-      Math.cos(angle) * radius
+      wH - 0.008,                               // just below ceiling
+      Math.cos(angle) * radius,
     );
     _obj.rotation.set(0, angle, 0);
     _obj.updateMatrix();
-    lights.setMatrixAt(s, _obj.matrix);
+    tiles.setMatrixAt(s, _obj.matrix);
   }
-  lights.instanceMatrix.needsUpdate = true;
-  g.add(lights);
+  tiles.instanceMatrix.needsUpdate = true;
+  g.add(tiles);
 
   return g;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  STRUCTURE RIBS — Tan frames at every segment
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+//  PORTAL FRAME RIBS (InstancedMesh — 1 draw call)
+//
+//  Each rib is a "U" portal: two columns flanking the corridor +
+//  a flat horizontal roof-beam connecting them at ceiling level.
+//
+//  Profile path in local space (Y=up, Z=radially across corridor):
+//    Start at inner wall floor → up inner column → flare into
+//    ceiling beam → across to outer column top → down to floor.
+//
+//  Columns have organic flared caps (CatmullRom, tension 0.3).
+//  Tube radius 0.05 m gives visible ~0.10 m thickness.
+// ═══════════════════════════════════════════════════════════════
 
 function buildRibs(mats) {
-  const { innerR, outerR, wallHeight, segCount } = RING;
-  
-  // Construct a single rib shape using ExtrudeGeometry or Shape.
-  // It needs to span from innerR to outerR at wallHeight,
-  // and have vertical legs down to the floor.
-  
-  const shape = new THREE.Shape();
-  const w = 0.25; // rib width
-  const d = 0.40; // rib depth (radial)
+  const { innerR, outerR, halfWidth: hw, wallHeight: wH, segCount } = RING;
 
-  // Profile: Rectangular beam for simplicity
-  shape.moveTo(-w/2, -d/2);
-  shape.lineTo( w/2, -d/2);
-  shape.lineTo( w/2,  d/2);
-  shape.lineTo(-w/2,  d/2);
-  
-  // We need an arch path.
-  // Path: Up Inner Wall -> Across Ceiling -> Down Outer Wall.
-  const curve = new THREE.CurvePath();
+  const curve = new THREE.CatmullRomCurve3([
+    // ── Inner column ────────────────────────────────────────
+    new THREE.Vector3(0, 0.00,   -hw),           // base at inner wall
+    new THREE.Vector3(0, wH*0.35, -hw),          // column lower
+    new THREE.Vector3(0, wH*0.72, -hw),          // column upper
+    new THREE.Vector3(0, wH*0.90, -hw*0.85),     // bracket starts spreading
+    new THREE.Vector3(0, wH*0.97, -hw*0.55),     // bracket spreads to centre
+    // ── Flat ceiling crossbeam ───────────────────────────────
+    new THREE.Vector3(0, wH*1.00,  0),           // beam midpoint (crown)
+    // ── Outer bracket mirror ─────────────────────────────────
+    new THREE.Vector3(0, wH*0.97,  hw*0.55),
+    new THREE.Vector3(0, wH*0.90,  hw*0.85),
+    new THREE.Vector3(0, wH*0.72,  hw),
+    new THREE.Vector3(0, wH*0.35,  hw),
+    new THREE.Vector3(0, 0.00,    hw),           // base at outer wall
+  ], false, 'catmullrom', 0.25);
 
-  // 1. Inner Leg (vertical)
-  const line1 = new THREE.LineCurve3(
-    new THREE.Vector3(0, 0, -RING.halfWidth),
-    new THREE.Vector3(0, wallHeight, -RING.halfWidth)
-  );
-  // 2. Ceiling Span (flat, slightly arched?)
-  // Image shows flat ceiling beams.
-  const line2 = new THREE.LineCurve3(
-    new THREE.Vector3(0, wallHeight, -RING.halfWidth),
-    new THREE.Vector3(0, wallHeight, RING.halfWidth)
-  );
-  // 3. Outer Leg (vertical)
-  const line3 = new THREE.LineCurve3(
-    new THREE.Vector3(0, wallHeight, RING.halfWidth),
-    new THREE.Vector3(0, 0, RING.halfWidth)
-  );
-  
-  curve.add(line1);
-  curve.add(line2);
-  curve.add(line3);
-
-  const geo = new THREE.TubeGeometry(curve, 32, 0.15, 8, false); // 0.15 radius = 0.3m thick
-  const ribs = new THREE.InstancedMesh(geo, mats.rib, segCount);
+  const ribGeo  = new THREE.TubeGeometry(curve, 48, 0.052, 7, false);
+  const ribs    = new THREE.InstancedMesh(ribGeo, mats.rib, segCount);
 
   for (let s = 0; s < segCount; s++) {
-    const angle = s / segCount * TAU;
+    const angle = (s / segCount) * TAU;
     _obj.position.set(
       Math.sin(angle) * RING.radius,
       0,
-      Math.cos(angle) * RING.radius
+      Math.cos(angle) * RING.radius,
     );
     _obj.rotation.set(0, angle, 0);
+    _obj.scale.setScalar(1);
     _obj.updateMatrix();
     ribs.setMatrixAt(s, _obj.matrix);
   }
@@ -311,57 +262,85 @@ function buildRibs(mats) {
   return ribs;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 //  DOORS
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 
 function buildDoors(mats, doorsOut) {
   const g = new THREE.Group();
-  const { doorEvery, radius, innerR, outerR } = RING;
-  // ... basic door logic similar to before, simplified ...
-  // Reuse existing logic roughly to ensure door placement works.
-  
-  const count = Math.floor(RING.segCount / doorEvery);
-  for (let i = 0; i < count; i++) {
-    const seg = i * doorEvery;
-    const angle = (seg + 0.5) / RING.segCount * TAU;
-    const isOuter = (i % 2 === 0);
-    const r = isOuter ? outerR - 0.2 : innerR + 0.2;
-    
-    // Simple Door visuals
-    const dGroup = new THREE.Group();
-    
-    // Frame
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.4, 0.2), mats.doorFrame);
-    frame.position.y = 1.2;
-    dGroup.add(frame);
-    
-    // Panels
-    const panels = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.2, 0.1), mats.doorPanel);
-    panels.position.y = 1.2;
-    dGroup.add(panels);
-    
-    dGroup.position.set(Math.sin(angle)*r, 0, Math.cos(angle)*r);
-    dGroup.lookAt(Math.sin(angle)*radius, 0, Math.cos(angle)*radius); // look at center of corridor
-    if (isOuter) dGroup.rotateY(Math.PI);
-    
-    g.add(dGroup);
+  const { segCount, doorEvery, outerR, innerR, radius } = RING;
+  const count = Math.floor(segCount / doorEvery);
+
+  for (let di = 0; di < count; di++) {
+    const seg     = di * doorEvery;
+    const angle   = (seg + 0.5) / segCount * TAU;
+    const isOuter = (di % 2 === 0);
+    const wallR   = isOuter ? outerR - 0.18 : innerR + 0.18;
+    const faceR   = isOuter ? angle + Math.PI : angle;
+
+    const dg = new THREE.Group();
+
+    // Frame (matches rib colour)
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(1.70, 2.42, 0.22), mats.doorFrame,
+    );
+    frame.position.y = 1.21;
+    dg.add(frame);
+
+    // Left + Right sliding panels
+    const panGeo = new THREE.BoxGeometry(0.74, 2.20, 0.08);
+    const lp = new THREE.Mesh(panGeo, mats.doorPanel);
+    lp.position.set(-0.40, 1.10, 0.10);
+    dg.add(lp);
+    const rp = new THREE.Mesh(panGeo.clone(), mats.doorPanel);
+    rp.position.set( 0.40, 1.10, 0.10);
+    dg.add(rp);
+
+    // Label canvas above door
+    const label = RING.doorLabels[di % RING.doorLabels.length];
+    const cv    = document.createElement('canvas');
+    cv.width = 256; cv.height = 48;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#111'; ctx.fillRect(0, 0, 256, 48);
+    ctx.fillStyle = '#FF9900';
+    ctx.font = 'bold 20px Arial Narrow, Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, 128, 34);
+    const lm = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.1, 0.20),
+      new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv) }),
+    );
+    lm.position.set(0, 2.58, 0.12);
+    dg.add(lm);
+
+    dg.position.set(Math.sin(angle) * wallR, 0, Math.cos(angle) * wallR);
+    dg.rotation.set(0, faceR, 0);
+    g.add(dg);
+    doorsOut.push({ lp, rp, angle, wallR, open: false, t: 0 });
   }
-  
   return g;
 }
 
-
-// ═══════════════════════════════════════════════════════════════════════════
-//  LIGHTING
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+//  LIGHTING — bright, clean corridor look
+//  Main illumination comes from the emissive ceiling tiles and
+//  baseboards. Supplement with a cool hemisphere and two fill points.
+// ═══════════════════════════════════════════════════════════════
 
 function buildLighting(root, resources) {
-  // Bright, clean tech look.
-  const hemi = new THREE.HemisphereLight(0xFFFFFF, 0xAA99AA, 1.2);
+  // Cool-white hemisphere — overheads + baseboard fill
+  const hemi = new THREE.HemisphereLight(0xEEF2FF, 0x2A2830, 1.10);
   root.add(hemi);
 
-  // Accent lights for panels
-  // ...
+  // Two opposing corridor-length fill points
+  [0, Math.PI].forEach(theta => {
+    const pt = new THREE.PointLight(0xF8F8FF, 1.2, 12);
+    pt.position.set(
+      Math.sin(theta) * RING.radius,
+      RING.wallHeight * 0.70,
+      Math.cos(theta) * RING.radius,
+    );
+    root.add(pt);
+    resources.accentLights.push(pt);
+  });
 }
-
