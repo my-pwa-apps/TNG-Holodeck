@@ -137,9 +137,7 @@ export class VoiceSystem {
   }
 
   _resolveScene(raw) {
-    if (/sherlock|baker|holmes|victorian/i.test(raw))      return 'sherlock';
     if (/bridge|tactical|starship|enterprise/i.test(raw))  return 'bridge';
-    if (/alien|planet|landscape|survey/i.test(raw))        return 'alien';
     if (/corridor|deck|hallway/i.test(raw))                return 'corridor';
     if (/grid|end|standby/i.test(raw))                     return 'grid';
     console.warn(`[VoiceSystem] Unknown scene: "${raw}"`);

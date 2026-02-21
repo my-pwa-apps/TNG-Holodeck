@@ -38,8 +38,6 @@ export const useSceneStore = create(
 // Human-readable labels for program display (TNG-style program designations)
 export const SCENE_LABELS = {
   grid:     'GRID ROOM — STANDBY',
-  sherlock: 'PROGRAM ALPHA 47 — 221B BAKER STREET',
   bridge:   'PROGRAM DELTA 12 — BRIDGE TACTICAL SIMULATION',
-  alien:    'PROGRAM GAMMA 88 — CLASS M SURVEY — SECTOR 47',
   corridor: 'PROGRAM EPSILON 7 — ENTERPRISE-D CORRIDOR — DECK 7',
 };

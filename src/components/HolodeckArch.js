@@ -145,9 +145,7 @@ export class HolodeckArch {
     // ── Program selector buttons (main content area) ─────────
     const programs = [
       { label: 'GRID ROOM',     key: 'grid',     color: C.blue   },
-      { label: 'BAKER STREET',  key: 'sherlock', color: C.orange },
       { label: 'BRIDGE SIM',    key: 'bridge',   color: C.dark   },
-      { label: 'ALIEN SURVEY',  key: 'alien',    color: C.purple },
       { label: 'CORRIDOR ε7',   key: 'corridor', color: '#00BBFF' },
     ];
 

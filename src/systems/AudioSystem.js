@@ -67,9 +67,7 @@ export class AudioSystem {
     this.stopAmbient();
     switch (scene) {
       case 'grid':     this._ambientHolodeckHum(); break;
-      case 'sherlock': this._ambientVictorian(); break;
       case 'bridge':   this._ambientBridge(); break;
-      case 'alien':    this._ambientAlien(); break;
       default: break;
     }
   }

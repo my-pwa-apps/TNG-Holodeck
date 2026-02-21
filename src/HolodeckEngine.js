@@ -8,9 +8,7 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 
 import { useSceneStore, SCENE_LABELS } from './store/SceneStore.js';
 import { HolodeckRoom }          from './scenes/HolodeckRoom.js';
-import { SherlockScene }         from './scenes/SherlockScene.js';
 import { BridgeScene }           from './scenes/BridgeScene.js';
-import { AlienScene }            from './scenes/AlienScene.js';
 import { CorridorScene }         from './scenes/CorridorScene.js';
 import { MaterializationSystem } from './systems/MaterializationSystem.js';
 import { AudioSystem }           from './systems/AudioSystem.js';
@@ -18,9 +16,7 @@ import { VoiceSystem }           from './systems/VoiceSystem.js';
 import { HolodeckArch }          from './components/HolodeckArch.js';
 
 const SCENE_MAP = {
-  sherlock: SherlockScene,
   bridge:   BridgeScene,
-  alien:    AlienScene,
   corridor: CorridorScene,
 };
 
@@ -217,8 +213,8 @@ export class HolodeckEngine {
    *   Left  Grip           → Toggle Arch
    *   Left  Menu           → Toggle Voice Control
    *   Left  Thumbstick btn → Freeze / Resume program
-   *   Right A              → Load Sherlock       (PROG·ALPHA·47)
-   *   Right B              → Load Alien          (PROG·GAMMA·88)
+   *   Right A              → (unassigned)
+   *   Right B              → (unassigned)
    *   Right Grip           → Mute / Unmute audio (cycle 0 ↔ 0.7)
    *   Right Menu           → Red Alert
    *   Right Thumbstick btn → Load Grid (end program)
@@ -267,13 +263,7 @@ export class HolodeckEngine {
 
         // ── Right controller ─────────────────────────────────
         if (hand === 'right') {
-          if (idx === 0) {           // A → Sherlock
-            this.audio.play('computer_ack');
-            store.requestScene('sherlock');
-          } else if (idx === 1) {   // B → Alien
-            this.audio.play('computer_ack');
-            store.requestScene('alien');
-          } else if (idx === 3) {   // Menu/Oculus → Red Alert
+          if (idx === 3) {   // Menu/Oculus → Red Alert
             this._currentSceneModule?.activateRedAlert?.();
             this.audio.play('computer_ack');
           } else if (idx === 4) {   // Thumbstick click → Grid (end program)
