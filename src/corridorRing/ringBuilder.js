@@ -42,12 +42,12 @@ export function buildCorridorRing() {
     carpetPath:   makeMat(P.carpetStripe, { roughness: 0.95, metalness: 0 }),
 
     // Both walls share same materials; side set per-mesh
-    wallPanel:    makeMat(P.wallPanel,  { roughness: 0.55, metalness: 0.25 }),
+    wallPanel:    makeMat(P.wallPanel,  { roughness: 0.40, metalness: 0.30 }),
     wallBlack:    makeMat(P.wallBlack,  { roughness: 0.15, metalness: 0.60 }),
     baseboard: new THREE.MeshStandardMaterial({
       color: new THREE.Color(P.baseboard),
       emissive: new THREE.Color(P.baseboard),
-      emissiveIntensity: 2.2, roughness: 0.35,
+      emissiveIntensity: 3.0, roughness: 0.35,
     }),
 
     rib:      makeMat(P.rib,      { roughness: 0.65, metalness: 0.05 }),
@@ -57,7 +57,7 @@ export function buildCorridorRing() {
     ceilPanel: new THREE.MeshStandardMaterial({
       color: new THREE.Color(P.ceilPanel),
       emissive: new THREE.Color(P.ceilPanel),
-      emissiveIntensity: 1.6, roughness: 0.40,
+      emissiveIntensity: 2.8, roughness: 0.40,
     }),
 
     doorFrame: makeMat(P.doorFrame, { roughness: 0.65, metalness: 0.05 }),
@@ -143,14 +143,20 @@ function buildWall(mats, isInner) {
   cyl(bandR,  bandLow,  bandHigh-bandLow, blackMat);              // black recessed band
   cyl(r,      bandHigh, wH - bandHigh,    panelMat);              // upper panels
 
-  // Thin horizontal groove rings dividing lower panels into 2 rows
-  const grooveY = baseH + (bandLow - baseH) * 0.50;
+  // Horizontal groove rings articulating wall panels
   const grooveMat = mats.wallBlack.clone();
   grooveMat.side  = side;
-  const gGeo = new THREE.CylinderGeometry(r, r, 0.025, segments, 1, true);
-  const groove = new THREE.Mesh(gGeo, grooveMat);
-  groove.position.y = grooveY;
-  g.add(groove);
+  const groovePositions = [
+    baseH + (bandLow  - baseH)  * 0.33,   // lower section — 1/3
+    baseH + (bandLow  - baseH)  * 0.67,   // lower section — 2/3
+    bandHigh + (wH    - bandHigh) * 0.50,  // upper section — mid
+  ];
+  groovePositions.forEach(grooveY => {
+    const gGeo   = new THREE.CylinderGeometry(r, r, 0.022, segments, 1, true);
+    const groove = new THREE.Mesh(gGeo, grooveMat);
+    groove.position.y = grooveY;
+    g.add(groove);
+  });
 
   // Outer wall only: multi-rail mahogany handrail (3 horizontal rails)
   if (!isInner) {
@@ -185,8 +191,8 @@ function buildCeiling(mats) {
   g.add(ceilMesh);
 
   // Recessed light tiles between rib bays (InstancedMesh)
-  const tileLen   = 1.50;   // radial span (across corridor)
   const segArcLen = TAU * radius / segCount;
+  const tileLen   = 1.50;   // radial span (across corridor)
   const tileWid   = segArcLen * 0.64;  // along corridor direction
 
   const tileGeo = new THREE.BoxGeometry(tileWid, 0.025, tileLen);
@@ -205,6 +211,28 @@ function buildCeiling(mats) {
   }
   tiles.instanceMatrix.needsUpdate = true;
   g.add(tiles);
+
+  // Tan longitudinal frame members — flank each tile, frame the white panels
+  // BoxGeometry: tangential length ≈ tileWid, narrow radial span, thin thickness
+  const frameGeo  = new THREE.BoxGeometry(tileWid * 0.95, 0.06, 0.12);
+  const frames    = new THREE.InstancedMesh(frameGeo, mats.ceiling, segCount * 2);
+  let fi = 0;
+  const frameInR  = radius - tileLen * 0.5 - 0.07;
+  const frameOutR = radius + tileLen * 0.5 + 0.07;
+  for (let s = 0; s < segCount; s++) {
+    const angle = (s + 0.5) / segCount * TAU;
+    const sinA  = Math.sin(angle);
+    const cosA  = Math.cos(angle);
+    for (const fr of [frameInR, frameOutR]) {
+      _obj.position.set(sinA * fr, wH - 0.003, cosA * fr);
+      _obj.rotation.set(0, angle, 0);
+      _obj.scale.setScalar(1);
+      _obj.updateMatrix();
+      frames.setMatrixAt(fi++, _obj.matrix);
+    }
+  }
+  frames.instanceMatrix.needsUpdate = true;
+  g.add(frames);
 
   return g;
 }
@@ -241,9 +269,9 @@ function buildRibs(mats) {
     new THREE.Vector3(0, wH*0.72,  hw),
     new THREE.Vector3(0, wH*0.35,  hw),
     new THREE.Vector3(0, 0.00,    hw),           // base at outer wall
-  ], false, 'catmullrom', 0.25);
+  ], false, 'catmullrom', 0.30);
 
-  const ribGeo  = new THREE.TubeGeometry(curve, 48, 0.052, 7, false);
+  const ribGeo  = new THREE.TubeGeometry(curve, 48, 0.072, 7, false);
   const ribs    = new THREE.InstancedMesh(ribGeo, mats.rib, segCount);
 
   for (let s = 0; s < segCount; s++) {
@@ -322,25 +350,27 @@ function buildDoors(mats, doorsOut) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  LIGHTING — bright, clean corridor look
-//  Main illumination comes from the emissive ceiling tiles and
-//  baseboards. Supplement with a cool hemisphere and two fill points.
+//  LIGHTING — dark, moody corridor atmosphere
+//  Primary light sources are the emissive baseboards (warm white)
+//  and emissive ceiling tiles (cool white). A near-black ambient
+//  hemisphere ensures walls fall into deep shadow.
+//  Two PointLights scatter near floor and ceiling respectively.
 // ═══════════════════════════════════════════════════════════════
 
 function buildLighting(root, resources) {
-  // Cool-white hemisphere — overheads + baseboard fill
-  const hemi = new THREE.HemisphereLight(0xEEF2FF, 0x2A2830, 1.10);
+  // Near-black hemisphere — just enough to give wall panels form in shadow
+  const hemi = new THREE.HemisphereLight(0x1A2030, 0x080510, 0.12);
   root.add(hemi);
 
-  // Two opposing corridor-length fill points
-  [0, Math.PI].forEach(theta => {
-    const pt = new THREE.PointLight(0xF8F8FF, 1.2, 12);
-    pt.position.set(
-      Math.sin(theta) * RING.radius,
-      RING.wallHeight * 0.70,
-      Math.cos(theta) * RING.radius,
-    );
-    root.add(pt);
-    resources.accentLights.push(pt);
-  });
+  // Baseboard zone fill — warm white scatter near floor
+  const baseLight = new THREE.PointLight(0xF8F8F0, 1.8, 8);
+  baseLight.position.set(0, 0.30, 0);
+  root.add(baseLight);
+  resources.accentLights.push(baseLight);
+
+  // Ceiling zone fill — cool white scatter from ceiling tiles
+  const ceilLight = new THREE.PointLight(0xF0F4FF, 1.5, 10);
+  ceilLight.position.set(0, RING.wallHeight * 0.95, 0);
+  root.add(ceilLight);
+  resources.accentLights.push(ceilLight);
 }

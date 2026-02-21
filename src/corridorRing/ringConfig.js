@@ -36,11 +36,11 @@ export const RING = {
   doorEvery:   7,
 
   // ── Wall section heights (matched to reference image) ─────────────────
-  // Image: ~0.20m bright baseboard, black band at ~1.0–1.32m, flat ceiling at ~2.5m
-  baseH:    0.20,           // luminous white baseboard (0 → baseH)
-  bandLow:  0.98,           // black recessed band bottom
-  bandHigh: 1.30,           // black recessed band top
-  railH:    1.08,           // handrail centre height (upper edge of black band)
+  // Image: ~0.25m bright baseboard, black band at ~0.95–1.28m, flat ceiling at ~2.5m
+  baseH:      0.25,         // luminous white baseboard (0 → baseH)
+  bandLow:    0.95,         // black recessed band bottom
+  bandHigh:   1.28,         // black recessed band top
+  railH:      1.12,         // handrail centre height (upper edge of black band)
   wallHeight: 2.50,         // flat ceiling height (overrides room.wallHeight)
 
   // ── Door labels (cycled) ───────────────────────────────────────────────
@@ -52,28 +52,28 @@ export const RING = {
   // ── Colour palette (matched to reference render) ──────────────────────
   palette: {
     // Floor — blue-grey centre, pink/mauve edges
-    carpetMain:    0xB09090,   // pink/mauve side panels
-    carpetStripe:  0x7888A0,   // blue-grey centre path
+    carpetMain:    0xA08888,   // pink/mauve side panels (slightly deeper)
+    carpetStripe:  0x6E7E94,   // blue-grey centre path (slightly deeper)
 
-    // Walls (symmetric both sides)
-    wallPanel:     0x7A7E84,   // medium-dark cool grey (horizontal panels)
-    wallBlack:     0x080808,   // deep black recessed horizontal band
+    // Walls (symmetric both sides) — dark slate grey, absorbs light
+    wallPanel:     0x4C5058,   // dark cool slate grey (horizontal panels)
+    wallBlack:     0x060608,   // near-black recessed horizontal band
 
     // Bright white luminous baseboard strip
-    baseboard:     0xF4F4F4,
+    baseboard:     0xF8F8F8,   // pure white
 
     // Structural portal frames (warm tan/sandy beige)
-    rib:           0xC8B898,
+    rib:           0xC4B48C,
 
     // Multi-rail mahogany handrail (outer wall)
-    handrail:      0x3C1A08,
+    handrail:      0x3A1606,
 
-    // Ceiling — flat ceiling surface + bright light panels
-    ceiling:       0xA8AAAC,   // cool grey ceiling structural surface
-    ceilPanel:     0xF8F8F8,   // bright white recessed ceiling light tiles
+    // Ceiling — TAN structural surface (same as ribs) + bright white light tiles
+    ceiling:       0xC4B48C,   // tan/beige — ceiling frame matches rib colour
+    ceilPanel:     0xF6F6F6,   // bright white recessed ceiling light tiles
 
     // Doors
-    doorFrame:     0xC8B898,   // match ribs
-    doorPanel:     0x8A8E94,   // dark grey sliding panels
+    doorFrame:     0xC4B48C,   // match ribs
+    doorPanel:     0x6A6E74,   // dark grey sliding panels
   },
 };
