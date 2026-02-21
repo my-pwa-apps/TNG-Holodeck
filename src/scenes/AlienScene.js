@@ -9,8 +9,9 @@ export class AlienScene {
     this._scene = scene;
     this._audio = audio;
     this._root  = new THREE.Group();
-    this._flora = [];   // {mesh, phase, speed}
+    this._flora = [];
     this._sunLights = [];
+    this._sporesMesh = null;
   }
 
   load() {
@@ -32,6 +33,11 @@ export class AlienScene {
     // ── Ambient ───────────────────────────────────────────────────────────
     // Raised so purple terrain isn't crushed to black by ACESFilmic.
     this._root.add(new THREE.AmbientLight(0x441166, 1.0));
+
+    // Extra details
+    this._root.add(this._buildRocks());
+    this._root.add(this._buildCrystals());
+    this._root.add(this._buildSpores());
 
     this._scene.add(this._root);
     return this._root;
@@ -214,6 +220,11 @@ export class AlienScene {
 
   unload() {
     this._scene.fog = null;
+    if (this._sporesMesh) {
+      this._sporesMesh.geometry?.dispose();
+      this._sporesMesh.material?.dispose();
+      this._sporesMesh = null;
+    }
     this._scene.remove(this._root);
     this._root.traverse(o => {
       o.geometry?.dispose();
@@ -226,17 +237,114 @@ export class AlienScene {
   getObjects() { return [this._root]; }
 
   update(dt, elapsed) {
-    // Animate bioluminescent emission pulse
-    this._flora.forEach(({ mesh, phase, speed, color }) => {
+    this._flora.forEach(({ mesh, phase, speed }) => {
       const pulse = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(elapsed * speed + phase));
       mesh.traverse(o => {
-        if (o.isMesh && o.material?.emissive) {
-          o.material.emissiveIntensity = pulse;
-        }
+        if (o.isMesh && o.material?.emissive) o.material.emissiveIntensity = pulse;
       });
-
-      // Gentle sway
       mesh.rotation.z = 0.08 * Math.sin(elapsed * speed * 0.5 + phase);
     });
+
+    // Float spores upward, wrap at y = 5
+    if (this._sporesMesh) {
+      const pos = this._sporesMesh.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        let y = pos.getY(i) + dt * (0.04 + 0.02 * Math.sin(elapsed + i));
+        if (y > 5) y -= 5;
+        pos.setY(i, y);
+      }
+      pos.needsUpdate = true;
+    }
   }
-}
+
+  // ── Rocks ──────────────────────────────────────────────────
+  _buildRocks() {
+    const group = new THREE.Group();
+    const mat   = new THREE.MeshStandardMaterial({
+      color: 0x2a1a35, roughness: 0.9, metalness: 0.1,
+    });
+    for (let i = 0; i < 16; i++) {
+      const scale = 0.3 + Math.random() * 0.9;
+      const geo   = new THREE.IcosahedronGeometry(scale, 1);
+      // Deform vertices slightly for organic look
+      const pos   = geo.attributes.position;
+      for (let v = 0; v < pos.count; v++) {
+        pos.setXYZ(v,
+          pos.getX(v) * (0.85 + Math.random() * 0.3),
+          pos.getY(v) * (0.7  + Math.random() * 0.3),
+          pos.getZ(v) * (0.85 + Math.random() * 0.3)
+        );
+      }
+      pos.needsUpdate = true;
+      geo.computeVertexNormals();
+      const rock = new THREE.Mesh(geo, mat);
+      rock.position.set(
+        (Math.random() - 0.5) * 24,
+        -scale * 0.4,
+        (Math.random() - 0.5) * 24
+      );
+      rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+      group.add(rock);
+    }
+    return group;
+  }
+
+  // ── Crystal spires ──────────────────────────────────────────
+  _buildCrystals() {
+    const group  = new THREE.Group();
+    const colors = [0x00EEFF, 0xFF00CC, 0xAA00FF, 0x00FFCC];
+    for (let i = 0; i < 10; i++) {
+      const col  = colors[i % colors.length];
+      const c    = new THREE.Color(col);
+      const mat  = new THREE.MeshStandardMaterial({
+        color: c, emissive: c, emissiveIntensity: 0.9,
+        transparent: true, opacity: 0.75, roughness: 0.1,
+      });
+      const h    = 0.8 + Math.random() * 2.4;
+      const spire = new THREE.Mesh(new THREE.ConeGeometry(0.12, h, 5), mat);
+      spire.position.set(
+        (Math.random() - 0.5) * 22,
+        h / 2,
+        (Math.random() - 0.5) * 22
+      );
+      spire.rotation.y = Math.random() * Math.PI;
+      group.add(spire);
+      // Two smaller sub-crystals
+      for (let s = 0; s < 2; s++) {
+        const sh = h * 0.5;
+        const sub = new THREE.Mesh(new THREE.ConeGeometry(0.07, sh, 5), mat);
+        sub.position.set(
+          spire.position.x + (Math.random() - 0.5) * 0.35,
+          sh / 2,
+          spire.position.z + (Math.random() - 0.5) * 0.35
+        );
+        sub.rotation.y = Math.random() * Math.PI;
+        sub.rotation.z = (Math.random() - 0.5) * 0.3;
+        group.add(sub);
+      }
+    }
+    return group;
+  }
+
+  // ── Floating spores ──────────────────────────────────────────
+  _buildSpores() {
+    const COUNT = 600;
+    const positions = new Float32Array(COUNT * 3);
+    for (let i = 0; i < COUNT; i++) {
+      positions[i * 3]     = (Math.random() - 0.5) * 26;
+      positions[i * 3 + 1] = Math.random() * 5;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 26;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({
+      color:    0xAAFFCC,
+      size:     0.04,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      transparent: true,
+      opacity:  0.7,
+    });
+    this._sporesMesh = new THREE.Points(geo, mat);
+    return this._sporesMesh;
+  }}

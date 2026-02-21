@@ -208,14 +208,16 @@ export class HolodeckEngine {
    * (btn[4] = Trigger — already handled via selectstart event)
    * ─────────────────────────────────────────────────
    * Mapping
-   *   Left  X      → Load Corridor       (PROG·EPSILON·7)
-   *   Left  Y      → Load Bridge         (PROG·DELTA·12)
-   *   Left  Grip   → Toggle Arch
-   *   Left  Menu   → Freeze / Resume program
-   *   Right A      → Load Sherlock       (PROG·ALPHA·47)
-   *   Right B      → Load Alien          (PROG·GAMMA·88)
-   *   Right Grip   → Mute / Unmute audio (cycle 0 ↔ 0.7)
-   *   Right Menu   → Red Alert
+   *   Left  X              → Load Corridor       (PROG·EPSILON·7)
+   *   Left  Y              → Load Bridge         (PROG·DELTA·12)
+   *   Left  Grip           → Toggle Arch
+   *   Left  Menu           → Toggle Voice Control
+   *   Left  Thumbstick btn → Freeze / Resume program
+   *   Right A              → Load Sherlock       (PROG·ALPHA·47)
+   *   Right B              → Load Alien          (PROG·GAMMA·88)
+   *   Right Grip           → Mute / Unmute audio (cycle 0 ↔ 0.7)
+   *   Right Menu           → Red Alert
+   *   Right Thumbstick btn → Load Grid (end program)
    */
   _updateXRButtons() {
     if (!this.renderer.xr.isPresenting) return;
@@ -245,7 +247,11 @@ export class HolodeckEngine {
           } else if (idx === 1) {   // Y → Bridge
             this.audio.play('computer_ack');
             store.requestScene('bridge');
-          } else if (idx === 3) {   // Menu → Freeze/Resume
+          } else if (idx === 3) {   // Menu → Voice toggle
+            if (store.voiceActive) this.voice.stop();
+            else                   this.voice.start();
+            this.audio.play('computer_ack');
+          } else if (idx === 4) {   // Thumbstick click → Freeze / Resume
             if (store.frozen) { store.setFrozen(false); }
             else              { store.setFrozen(true);  }
             this.audio.play('computer_ack');
@@ -266,6 +272,9 @@ export class HolodeckEngine {
           } else if (idx === 3) {   // Menu/Oculus → Red Alert
             this._currentSceneModule?.activateRedAlert?.();
             this.audio.play('computer_ack');
+          } else if (idx === 4) {   // Thumbstick click → Grid (end program)
+            this.audio.play('computer_ack');
+            store.requestScene('grid');
           } else if (idx === 5) {   // Right Grip → Mute toggle
             const vol = store.audioVolume > 0.05 ? 0 : 0.7;
             store.setAudioVolume(vol);

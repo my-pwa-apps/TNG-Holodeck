@@ -20,12 +20,17 @@ export class SherlockScene {
     // A warm candlelight tint at decent intensity; gas lamps add the local fill.
     this._ambient = new THREE.AmbientLight(0x5c3010, 1.2);
     this._root.add(this._ambient);
+    // Cool night-sky fill to keep deep shadows blue-tinted
+    this._root.add(new THREE.AmbientLight(0x0c1020, 0.4));
 
     // ── Cobblestone floor ─────────────────────────────────────────────────
     this._root.add(this._buildFloor());
 
     // ── Brick walls ───────────────────────────────────────────────────────
     this._root.add(this._buildWalls());
+
+    // ── Window glows ──────────────────────────────────────────────────────
+    this._root.add(this._buildWindows());
 
     // ── Gas lamps ─────────────────────────────────────────────────────────
     const lampPositions = [
@@ -38,33 +43,43 @@ export class SherlockScene {
       this._lamps.push(lamp);
     });
 
-    // ── NPC (simple hooded figure) ────────────────────────────────────────
-    this._npcs.push(this._buildNPC(0, 0, -3));
-    this._npcs.forEach(n => this._root.add(n.mesh));
+    // ── NPCs (three hooded figures, varying speeds and ranges) ────────────
+    [
+      { x: 0,    z: -3,   speed: 0.40, range: 2.5 },
+      { x: -3.5, z:  1.5, speed: 0.30, range: 3.0 },
+      { x:  3.0, z: -1.5, speed: 0.45, range: 2.0 },
+    ].forEach(({ x, z, speed, range }) => {
+      const npc = this._buildNPC(x, 0, z, speed, range);
+      this._npcs.push(npc);
+      this._root.add(npc.mesh);
+    });
 
     this._scene.add(this._root);
     return this._root;
   }
 
   _buildFloor() {
-    // Procedural cobblestone via vertex colour noise
     const geo = new THREE.PlaneGeometry(20, 20, 40, 40);
     geo.rotateX(-Math.PI / 2);
-
-    // Randomly displace cobblestone vertices slightly
     const pos = geo.attributes.position;
+    const cols = new Float32Array(pos.count * 3);
+    const base = new THREE.Color(0x4a3828);
     for (let i = 0; i < pos.count; i++) {
       pos.setY(i, (Math.random() - 0.5) * 0.04);
+      // Slight per-vertex colour variation — makes individual cobblestones readable
+      const v = 0.7 + Math.random() * 0.55;
+      cols[i * 3]     = base.r * v;
+      cols[i * 3 + 1] = base.g * v;
+      cols[i * 3 + 2] = base.b * v;
     }
     pos.needsUpdate = true;
     geo.computeVertexNormals();
-
-    const mat = new THREE.MeshStandardMaterial({
-      color: 0x4a3828,
-      roughness: 0.95,
-      metalness: 0.0,
-    });
-    return new THREE.Mesh(geo, mat);
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+    return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness:    0.35,   // wet cobblestones — specular gloss
+      metalness:    0.06,
+    }));
   }
 
   _buildWalls() {
@@ -90,69 +105,85 @@ export class SherlockScene {
     const group = new THREE.Group();
     group.position.set(...position);
 
+    const ironMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7 });
+
     // Pole
-    const pole = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.04, 0.06, 3.5, 8),
-      new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7 })
-    );
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 3.5, 8), ironMat);
     pole.position.y = 1.75;
     group.add(pole);
+
+    // Horizontal arm bracket
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.55, 6), ironMat);
+    arm.rotation.z = Math.PI / 2;
+    arm.position.set(0.275, 3.3, 0);
+    group.add(arm);
 
     // Lantern glass
     const glass = new THREE.Mesh(
       new THREE.SphereGeometry(0.18, 8, 8),
       new THREE.MeshStandardMaterial({
-        color:           0xFFCC55,
-        emissive:        new THREE.Color(0xFFAA22),
-        emissiveIntensity: 1.8,
-        transparent:     true,
-        opacity:         0.85,
+        color: 0xFFCC55, emissive: new THREE.Color(0xFFAA22),
+        emissiveIntensity: 1.8, transparent: true, opacity: 0.85,
       })
     );
-    glass.position.y = 3.6;
+    glass.position.set(0.55, 3.6, 0);
     group.add(glass);
 
-    // Point light
+    // Point light at lantern position
     const light = new THREE.PointLight(0xFFAA33, 5.0, 10, 2);
-    light.position.y = 3.7;
-    light.castShadow  = true;
+    light.position.set(0.55, 3.7, 0);
+    light.castShadow = true;
     group.add(light);
 
     return { group, light, glass, phase };
   }
 
-  _buildNPC(x, y, z) {
-    // Simple hooded figure from primitives
+  _buildNPC(x, y, z, speed = 0.4, range = 2.5) {
     const group = new THREE.Group();
     group.position.set(x, 0, z);
-
     const mat = new THREE.MeshStandardMaterial({ color: 0x1a1208, roughness: 0.9 });
-
-    // Body (cloak)
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.35, 1.5, 8), mat);
     body.position.y = 0.75;
     group.add(body);
-
-    // Head
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), mat);
     head.position.y = 1.7;
     group.add(head);
-
-    // Hood
     const hood = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.4, 8), mat);
     hood.position.y = 1.95;
     group.add(hood);
-
     group.userData.interactable = true;
-
     let t = 0;
     const update = (dt) => {
       t += dt;
-      group.position.z = z + Math.sin(t * 0.4) * 2.5;
-      group.rotation.y = Math.sin(t * 0.4) > 0 ? 0 : Math.PI;
+      group.position.z = z + Math.sin(t * speed) * range;
+      group.rotation.y = Math.sin(t * speed) > 0 ? 0 : Math.PI;
     };
-
     return { mesh: group, update };
+  }
+
+  _buildWindows() {
+    const group  = new THREE.Group();
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: 0xFFCC44, transparent: true, opacity: 0.35, side: THREE.DoubleSide,
+    });
+    // Four window positions on front and left walls
+    const windows = [
+      { pos: [-2.5, 2.5, -9.75], ry: 0   },
+      { pos: [ 2.5, 2.5, -9.75], ry: 0   },
+      { pos: [-9.75, 2.5, -2.5], ry: Math.PI / 2 },
+      { pos: [-9.75, 2.5,  2.5], ry: Math.PI / 2 },
+    ];
+    windows.forEach(({ pos, ry }) => {
+      const pane = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.2), glowMat);
+      pane.position.set(...pos);
+      pane.rotation.y = ry;
+      group.add(pane);
+      // Warm point light from each window
+      const wl = new THREE.PointLight(0xFFCC44, 0.6, 4);
+      wl.position.set(...pos);
+      group.add(wl);
+    });
+    return group;
   }
 
   unload() {

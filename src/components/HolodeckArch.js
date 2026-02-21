@@ -148,10 +148,11 @@ export class HolodeckArch {
       { label: 'BAKER STREET',  key: 'sherlock', color: C.orange },
       { label: 'BRIDGE SIM',    key: 'bridge',   color: C.dark   },
       { label: 'ALIEN SURVEY',  key: 'alien',    color: C.purple },
+      { label: 'CORRIDOR ε7',   key: 'corridor', color: '#00BBFF' },
     ];
 
     programs.forEach((p, i) => {
-      const bx = 54, by = 52 + i * 56, bw = w - 62, bh = 42;
+      const bx = 54, by = 52 + i * 50, bw = w - 62, bh = 38;
       this._roundRect(ctx, bx, by, bw, bh, p.color);
       ctx.fillStyle = C.bg;
       ctx.font = 'bold 15px Arial Narrow, Arial';
