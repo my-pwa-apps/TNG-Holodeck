@@ -256,13 +256,15 @@ export class BridgeScene {
       // Warp streaks
       const wp = this._warpProgress;
       this._stars.forEach(s => {
-        const cx  = w / 2;
-        const cy  = h / 2;
-        const dx  = s.x - cx;
-        const dy  = s.y - cy;
-        const len = Math.sqrt(dx*dx + dy*dy) * wp * 3;
-        const nx  = dx / (Math.sqrt(dx*dx + dy*dy));
-        const ny  = dy / (Math.sqrt(dx*dx + dy*dy));
+        const cx   = w / 2;
+        const cy   = h / 2;
+        const dx   = s.x - cx;
+        const dy   = s.y - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 1) return; // skip stars too close to screen centre
+        const len  = dist * wp * 3;
+        const nx   = dx / dist;
+        const ny   = dy / dist;
         ctx.strokeStyle = `rgba(180,200,255,${0.4 + s.brightness * 0.6})`;
         ctx.lineWidth = s.r * 0.5;
         ctx.beginPath();

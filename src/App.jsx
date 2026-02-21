@@ -13,17 +13,21 @@ import './App.css';
 let engineInstance = null;
 
 const SCENES = [
-  { key: 'grid',     label: 'GRID ROOM',    color: '#3399FF' },
-  { key: 'sherlock', label: 'BAKER STREET', color: '#FF9900' },
-  { key: 'bridge',   label: 'BRIDGE SIM',   color: '#CC6600' },
-  { key: 'alien',    label: 'ALIEN SURVEY', color: '#CC99FF' },
+  { key: 'grid',     label: 'GRID ROOM',    sub: 'GRID·ALPHA·47',   color: '#3399FF' },
+  { key: 'sherlock', label: 'BAKER STREET', sub: 'PROG·ALPHA·47',   color: '#FF9900' },
+  { key: 'bridge',   label: 'BRIDGE SIM',   sub: 'PROG·DELTA·12',   color: '#CC6600' },
+  { key: 'alien',    label: 'ALIEN SURVEY', sub: 'PROG·GAMMA·88',   color: '#CC99FF' },
 ];
 
 export default function App() {
   const canvasRef    = useRef(null);
   const [panelOpen, setPanelOpen]     = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [logLines, setLogLines]       = useState(['SYSTEM ONLINE', 'AWAITING PROGRAM SELECTION…']);
+  const [logLines, setLogLines]       = useState([
+    'LCARS INTERFACE ACTIVE',
+    'HOLODECK SYSTEMS NOMINAL',
+    'AWAITING PROGRAM SELECTION…',
+  ]);
 
   // Zustand state bindings
   const programRunning = useSceneStore(s => s.programRunning);
@@ -35,7 +39,19 @@ export default function App() {
   const store          = useSceneStore.getState();
 
   const addLog = (msg) =>
-    setLogLines(prev => [...prev.slice(-20), msg]);
+    setLogLines(prev => [...prev.slice(-24), msg]);
+
+  // ── Close panels on Escape ───────────────────────────────
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.code === 'Escape') {
+        setPanelOpen(false);
+        setSettingsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // ── Boot engine ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -43,8 +59,8 @@ export default function App() {
 
     import('./HolodeckEngine.js').then(({ HolodeckEngine }) => {
       engineInstance = new HolodeckEngine(canvasRef.current);
-      addLog('HOLODECK ENGINE INITIALISED');
-      addLog('GRID ROOM — STANDBY');
+      addLog('HOLODECK ENGINE ONLINE');
+      addLog('GRID ROOM — SAFETY PROTOCOLS ENABLED');
     });
 
     return () => {
@@ -57,7 +73,8 @@ export default function App() {
   const loadScene = (key) => {
     engineInstance?.audio.playUI('lcars_button');
     useSceneStore.getState().requestScene(key);
-    addLog(`LOADING: ${SCENES.find(s => s.key === key)?.label}`);
+    const scene = SCENES.find(s => s.key === key);
+    addLog(`LOADING: ${scene?.label ?? key.toUpperCase()}`);
     setPanelOpen(false);
   };
 
@@ -98,13 +115,13 @@ export default function App() {
           <LCARSButton label="ARCH"   color="#FF9900" onClick={toggleArch}   small />
           <LCARSButton label={frozen ? 'RESUME' : 'FREEZE'} color="#CC6600" onClick={toggleFreeze} small />
           <LCARSButton
-            label={voiceActive ? '🎙 VOICE ON' : '🎙 VOICE OFF'}
+            label={voiceActive ? 'VOICE ONLINE' : 'VOICE OFFLINE'}
             color={voiceActive ? '#00FF88' : '#334455'}
             onClick={toggleVoice}
             small
           />
           <LCARSButton label="PROGRAMS" color="#3399FF" onClick={() => setPanelOpen(p => !p)} small />
-          <LCARSButton label="⚙" color="#CC99FF" onClick={() => setSettingsOpen(p => !p)} small />
+          <LCARSButton label="CONFIG"   color="#CC99FF" onClick={() => setSettingsOpen(p => !p)} small />
         </div>
 
         {/* Bottom-left: log */}
@@ -112,30 +129,36 @@ export default function App() {
           <LCARSDisplay lines={logLines} />
         </div>
 
-        {/* Bottom-right: controls hint */}
-        <div id="hud-hint">
-          WASD / MOUSE — MOVE &nbsp;|&nbsp; CLICK CANVAS — LOCK POINTER
-          &nbsp;|&nbsp; SAY "COMPUTER, ARCH"
+        {/* Bottom LCARS status bar */}
+        <div id="hud-bottom-bar">
+          <span className="hud-bottom-bar__ship">USS ENTERPRISE — NCC-1701-D</span>
+          <span className="hud-bottom-bar__hint">WASD · MOUSE — MOVE &nbsp;⋅&nbsp; CLICK CANVAS — POINTER LOCK &nbsp;⋅&nbsp; SAY “COMPUTER, ARCH”</span>
+          <span className="hud-bottom-bar__deck">HOLODECK ⋅ DECK 11</span>
         </div>
       </div>
 
       {/* ── Scene selector panel ─────────────────────────────────────── */}
       {panelOpen && (
-        <div id="scene-panel" onClick={e => e.stopPropagation()}>
-          <LCARSTitle color="#FF9900">SELECT HOLODECK PROGRAM</LCARSTitle>
-          <div className="scene-panel__grid">
-            {SCENES.map(s => (
-              <SceneCard key={s.key} scene={s} onLoad={loadScene} />
-            ))}
+        <>
+          <div id="panel-backdrop" onClick={() => setPanelOpen(false)} />
+          <div id="scene-panel" onClick={e => e.stopPropagation()}>
+            <LCARSTitle color="#FF9900">SELECT HOLODECK PROGRAM</LCARSTitle>
+            <div className="scene-panel__grid">
+              {SCENES.map(s => (
+                <SceneCard key={s.key} scene={s} onLoad={loadScene} />
+              ))}
+            </div>
+            <LCARSButton label="CLOSE" color="#CC6600" onClick={() => setPanelOpen(false)} small />
           </div>
-          <LCARSButton label="CLOSE" color="#CC6600" onClick={() => setPanelOpen(false)} small />
-        </div>
+        </>
       )}
 
       {/* ── Settings panel ───────────────────────────────────────────── */}
       {settingsOpen && (
-        <div id="settings-panel" onClick={e => e.stopPropagation()}>
-          <LCARSTitle color="#CC99FF">HOLODECK PARAMETERS</LCARSTitle>
+        <>
+          <div id="panel-backdrop" onClick={() => setSettingsOpen(false)} />
+          <div id="settings-panel" onClick={e => e.stopPropagation()}>
+            <LCARSTitle color="#CC99FF">HOLODECK PARAMETERS</LCARSTitle>
 
           <div className="settings-row">
             <span>LOCOMOTION</span>
@@ -182,7 +205,8 @@ export default function App() {
           </div>
 
           <LCARSButton label="CLOSE" color="#CC6600" onClick={() => setSettingsOpen(false)} small />
-        </div>
+          </div>
+        </>
       )}
     </>
   );
@@ -197,6 +221,7 @@ function SceneCard({ scene, onLoad }) {
       onClick={() => onLoad(scene.key)}
     >
       <div className="scene-card__label">{scene.label}</div>
+      {scene.sub && <div className="scene-card__key">{scene.sub}</div>}
     </div>
   );
 }

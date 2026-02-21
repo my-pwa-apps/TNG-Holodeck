@@ -37,6 +37,11 @@ export class HolodeckEngine {
     this._grabTarget         = null;
     this._unsubscribers      = [];
 
+    // Pre-allocated scratch objects to avoid per-frame GC pressure
+    this._moveDir      = new THREE.Vector3();
+    this._grabRaycaster = new THREE.Raycaster();
+    this._grabMatrix    = new THREE.Matrix4();
+
     this._initRenderer();
     this._initScene();
     this._initCamera();
@@ -219,14 +224,16 @@ export class HolodeckEngine {
   _onXRSessionStart() {
     // In XR: disable EffectComposer (already bypassed in _animate),
     // reduce shadow maps, lower tone mapping exposure slightly.
-    this.renderer.shadowMap.type    = THREE.BasicShadowMap; // fastest
+    this.renderer.shadowMap.type      = THREE.BasicShadowMap; // fastest
     this.renderer.toneMappingExposure = 0.85; // compensate for HDR in headset
 
     // Tell MaterializationSystem to drop to XR particle budget
     if (this.matSys) this.matSys.setXRMode(true);
 
+    // Derive label from current scene key so we never stack " — XR" twice
+    const scene = useSceneStore.getState().currentScene;
     useSceneStore.getState().setProgramRunning(
-      (useSceneStore.getState().programRunning || '') + ' — XR'
+      (SCENE_LABELS[scene] || 'HOLODECK PROGRAM') + ' — XR ACTIVE'
     );
   }
 
@@ -272,8 +279,8 @@ export class HolodeckEngine {
 
   // ── Grab & release ─────────────────────────────────────────────────────
   _onGrab(controller) {
-    const raycaster  = new THREE.Raycaster();
-    const tempMatrix = new THREE.Matrix4().extractRotation(controller.matrixWorld);
+    const raycaster  = this._grabRaycaster;
+    const tempMatrix = this._grabMatrix.extractRotation(controller.matrixWorld);
     raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
     raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
 
@@ -306,7 +313,7 @@ export class HolodeckEngine {
     if (!this.frozen) {
       this._updateDesktopMovement(dt);
       this.holoRoom.update(elapsed);
-      this.matSys.update(dt);
+      this.matSys.update(dt, elapsed);
       this.arch.update(elapsed);
       if (this._currentSceneModule) this._currentSceneModule.update(dt, elapsed);
     }
@@ -324,7 +331,7 @@ export class HolodeckEngine {
     if (!this.plControls.isLocked) return;
 
     const speed = 4 * dt;
-    const dir   = new THREE.Vector3();
+    const dir   = this._moveDir.set(0, 0, 0);
 
     if (this.keys['KeyW'] || this.keys['ArrowUp'])    dir.z -= 1;
     if (this.keys['KeyS'] || this.keys['ArrowDown'])  dir.z += 1;

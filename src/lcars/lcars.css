@@ -7,10 +7,10 @@
 .lcars-btn {
   background:    var(--btn-color, #FF9900);
   color:         #000;
-  font-family:   'Arial', sans-serif;
+  font-family:   'Antonio', 'Arial Narrow', 'Arial', sans-serif;
   font-size:     13px;
   font-weight:   700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   border:        none;
   border-radius: 20px;
@@ -20,6 +20,7 @@
   overflow:      hidden;
   transition:    filter 0.1s, transform 0.08s;
   box-shadow:    0 0 8px var(--btn-color, #FF9900);
+  user-select:   none;
 }
 
 .lcars-btn::after {
@@ -34,21 +35,23 @@
 .lcars-btn:hover  { filter: brightness(1.25); }
 .lcars-btn:hover::after { opacity: 1; }
 .lcars-btn:active { transform: scale(0.96); }
+.lcars-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
 
 .lcars-btn--small {
   font-size: 11px;
   padding:   5px 12px;
+  letter-spacing: 0.08em;
 }
 
 /* ── Title bar ─────────────────────────────────────────── */
 .lcars-title {
   color:         #000;
-  font-family:   'Arial', sans-serif;
-  font-size:     12px;
+  font-family:   'Antonio', 'Arial Narrow', 'Arial', sans-serif;
+  font-size:     13px;
   font-weight:   700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  padding:       6px 14px;
+  padding:       7px 16px;
   border-radius: 20px 20px 0 0;
 }
 
@@ -56,13 +59,15 @@
 .lcars-display {
   background:  #000;
   border:      1px solid #FF9900;
+  border-top:  none;
   padding:     6px 10px;
-  font-family: 'Courier New', monospace;
+  font-family: 'Antonio', 'Courier New', monospace;
   font-size:   11px;
   color:       #FF9900;
   min-height:  48px;
   max-height:  120px;
   overflow-y:  auto;
+  scroll-behavior: smooth;
 }
 
 .lcars-display__line + .lcars-display__line {
@@ -78,10 +83,10 @@
   border:      1px solid #00FF88;
   border-radius: 4px;
   padding:     4px 10px;
-  font-family: 'Arial', sans-serif;
+  font-family: 'Antonio', 'Arial Narrow', 'Arial', sans-serif;
   font-size:   11px;
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
   color:       #00FF88;
 }
 
@@ -101,8 +106,8 @@
 
 /* ── Program status ────────────────────────────────────── */
 .program-status {
-  font-family:   'Arial', sans-serif;
-  font-size:     10px;
+  font-family:   'Antonio', 'Arial Narrow', 'Arial', sans-serif;
+  font-size:     11px;
   font-weight:   700;
   letter-spacing: 0.1em;
   text-transform: uppercase;

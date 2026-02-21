@@ -35,10 +35,10 @@ export const useSceneStore = create(
   }))
 );
 
-// Human-readable labels for program display
+// Human-readable labels for program display (TNG-style program designations)
 export const SCENE_LABELS = {
   grid:     'GRID ROOM — STANDBY',
-  sherlock: 'HOLODECK PROGRAM 47-ALPHA — BAKER STREET',
-  bridge:   'HOLODECK PROGRAM 12-DELTA — TACTICAL BRIDGE SIMULATION',
-  alien:    'HOLODECK PROGRAM 88-GAMMA — ALIEN LANDSCAPE SURVEY',
+  sherlock: 'PROGRAM ALPHA 47 — 221B BAKER STREET',
+  bridge:   'PROGRAM DELTA 12 — BRIDGE TACTICAL SIMULATION',
+  alien:    'PROGRAM GAMMA 88 — CLASS M SURVEY — SECTOR 47',
 };

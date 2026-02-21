@@ -20,7 +20,7 @@ export class HolodeckArch {
 
     this._lcarsTex = null;
     this._lcarsCtx = null;
-    this._lcarsT   = 0;
+    // _lcarsT is removed; elapsed time is passed directly from the animation loop
 
     this._build();
     this._root.visible = false;
@@ -271,8 +271,7 @@ export class HolodeckArch {
       this._archLight.intensity   = 1.5 * pulse;
     }
 
-    // Animate LCARS panel
-    this._lcarsT += 0.016;
-    this._drawPanel(this._lcarsT);
+    // Animate LCARS panel — pass engine elapsed time directly for smooth motion
+    this._drawPanel(elapsed);
   }
 }

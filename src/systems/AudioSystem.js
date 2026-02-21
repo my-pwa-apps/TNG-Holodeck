@@ -106,16 +106,15 @@ export class AudioSystem {
     return osc;
   }
 
-  _makeNoise(dest, duration) {
+  _makeNoise(duration) {
     const len    = this._ctx.sampleRate * duration;
     const buffer = this._ctx.createBuffer(1, len, this._ctx.sampleRate);
     const data   = buffer.getChannelData(0);
     for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
     const src = this._ctx.createBufferSource();
     src.buffer = buffer;
-    src.connect(dest);
     src.start();
-    return src;
+    return src;  // caller is responsible for connecting to graph
   }
 
   // ── Sound definitions ────────────────────────────────────────────────────
@@ -127,7 +126,7 @@ export class AudioSystem {
     env.gain.setTargetAtTime(0, this._ctx.currentTime + dur - 0.5, 0.2);
 
     // Bandpass-filtered noise sweep low→high
-    const noise  = this._makeNoise(undefined, dur);
+    const noise  = this._makeNoise(dur);
     const bpf    = this._ctx.createBiquadFilter();
     bpf.type = 'bandpass'; bpf.Q.value = 4;
     bpf.frequency.setValueAtTime(150, this._ctx.currentTime);
@@ -151,7 +150,7 @@ export class AudioSystem {
     const env  = this._makeEnv(this._masterGain, 0.02, 0.1, 0.3, 0.4, 0.35);
     env.gain.setTargetAtTime(0, this._ctx.currentTime + dur - 0.4, 0.15);
 
-    const noise  = this._makeNoise(undefined, dur);
+    const noise  = this._makeNoise(dur);
     const bpf    = this._ctx.createBiquadFilter();
     bpf.type = 'bandpass'; bpf.Q.value = 4;
     bpf.frequency.setValueAtTime(4000, this._ctx.currentTime);
@@ -177,7 +176,7 @@ export class AudioSystem {
     env.gain.setTargetAtTime(0, this._ctx.currentTime + dur - 0.35, 0.15);
     lpf.connect(env);
 
-    const noise = this._makeNoise(undefined, dur);
+    const noise = this._makeNoise(dur);
     noise.connect(lpf);
   }
 
@@ -258,7 +257,7 @@ export class AudioSystem {
     });
 
     // Wind noise
-    const windBuf = this._makeNoise(undefined, 999);
+    const windBuf = this._makeNoise(999);
     const hpf = this._ctx.createBiquadFilter();
     hpf.type  = 'highpass'; hpf.frequency.value = 2000;
     const wg  = this._ctx.createGain(); wg.gain.value = 0.05;
@@ -274,7 +273,7 @@ export class AudioSystem {
     osc.connect(g); g.connect(this._masterGain); osc.start();
     this._ambientNodes.push({ stop: () => osc.stop(), gain: g });
 
-    const n   = this._makeNoise(undefined, 999);
+    const n   = this._makeNoise(999);
     const bpf = this._ctx.createBiquadFilter();
     bpf.type  = 'bandpass'; bpf.frequency.value = 800; bpf.Q.value = 0.5;
     const ng  = this._ctx.createGain(); ng.gain.value = 0.03;

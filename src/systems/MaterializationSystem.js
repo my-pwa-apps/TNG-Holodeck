@@ -131,7 +131,10 @@ export class MaterializationSystem {
     targets.needsUpdate = true;
   }
 
-  update(dt) {
+  update(dt, elapsed = 0) {
+    // Keep uTime ticking regardless of active state (shader uses it for sparkle)
+    if (this._material) this._material.uniforms.uTime.value = elapsed;
+
     if (!this._active) return;
 
     const speed = 1 / (this._direction > 0 ? DURATION_IN : DURATION_OUT);

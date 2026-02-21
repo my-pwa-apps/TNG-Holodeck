@@ -12,7 +12,7 @@
   inset:          0;
   pointer-events: none;
   z-index:        10;
-  font-family:    'Arial Narrow', 'Arial', sans-serif;
+  font-family:    'Antonio', 'Arial Narrow', 'Arial', sans-serif;
 }
 
 /* TNG LCARS left-side bumper column */
@@ -38,6 +38,31 @@
   pointer-events:   none;
 }
 
+/* TNG LCARS right-side bumper column (mirrors left, varied colour sequence) */
+#hud::after {
+  content:          '';
+  position:         absolute;
+  top:              0;
+  right:            0;
+  width:            18px;
+  height:           100%;
+  background:       linear-gradient(
+    to bottom,
+    #CC99FF 0%,   #CC99FF 16%,
+    #000    16%,  #000    18%,
+    #FF9900 18%,  #FF9900 35%,
+    #000    35%,  #000    37%,
+    #CC6600 37%,  #CC6600 54%,
+    #000    54%,  #000    56%,
+    #3399FF 56%,  #3399FF 72%,
+    #000    72%,  #000    74%,
+    #CC99FF 74%,  #CC99FF 85%,
+    #000    85%,  #000    87%,
+    #FF9900 87%,  #FF9900 100%
+  );
+  pointer-events:   none;
+}
+
 #hud-status {
   position:       absolute;
   top:            16px;
@@ -51,7 +76,7 @@
 #hud-actions {
   position:       absolute;
   top:            16px;
-  right:          80px;
+  right:          30px;
   display:        flex;
   gap:            8px;
   align-items:    center;
@@ -72,27 +97,72 @@
 
 #hud-log {
   position:       absolute;
-  bottom:         48px;
+  bottom:         36px;
   left:           30px;
-  width:          320px;
+  width:          340px;
   pointer-events: none;
 }
 
 #hud-hint {
   position:       absolute;
-  bottom:         12px;
+  bottom:         34px;
   left:           50%;
   transform:      translateX(-50%);
   font-size:      10px;
-  letter-spacing: 0.12em;
-  color:          rgba(255,179,0,0.45);
+  letter-spacing: 0.10em;
+  color:          rgba(255,179,0,0.50);
   pointer-events: none;
   text-transform: uppercase;
+  white-space:    nowrap;
+}
+
+/* ── Bottom LCARS status bar ────────────────────── */
+#hud-bottom-bar {
+  position:        absolute;
+  bottom:          0;
+  left:            18px;
+  right:           18px;
+  height:          28px;
+  background:      #FF9900;
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         0 14px;
+  pointer-events:  none;
+}
+
+.hud-bottom-bar__ship,
+.hud-bottom-bar__deck {
+  font-family:    'Antonio', 'Arial Narrow', 'Arial', sans-serif;
+  font-size:      11px;
+  font-weight:    700;
+  letter-spacing: 0.14em;
+  color:          #000;
+  white-space:    nowrap;
+}
+
+.hud-bottom-bar__hint {
+  font-family:    'Antonio', 'Arial Narrow', 'Arial', sans-serif;
+  font-size:      9px;
+  font-weight:    400;
+  letter-spacing: 0.10em;
+  color:          rgba(0,0,0,0.65);
+  text-transform: uppercase;
+}
+
+/* ── Panel backdrop ──────────────────────────── */
+#panel-backdrop {
+  position:   fixed;
+  inset:      0;
+  z-index:    19;
+  background: rgba(0,0,0,0.45);
+  cursor:     pointer;
 }
 
 .frozen-badge {
   background:  rgba(0, 80, 180, 0.85);
   color:       #88CCFF;
+  font-family: 'Antonio', 'Arial Narrow', 'Arial', sans-serif;
   font-size:   11px;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -114,16 +184,17 @@
   top:            50%;
   left:           50%;
   transform:      translate(-50%, -50%);
-  background:     rgba(0, 0, 0, 0.94);
+  background:     rgba(0, 0, 0, 0.96);
   border:         1px solid #FF9900;
+  border-top:     3px solid #FF9900;
   border-radius:  4px;
-  padding:        20px;
-  min-width:      340px;
+  padding:        0 20px 20px;
+  min-width:      360px;
   z-index:        20;
   display:        flex;
   flex-direction: column;
   gap:            14px;
-  box-shadow:     0 0 40px rgba(255,179,0,0.3);
+  box-shadow:     0 0 48px rgba(255,153,0,0.25), 0 0 8px rgba(255,153,0,0.15);
 }
 
 .scene-panel__grid {
@@ -133,13 +204,15 @@
 }
 
 .scene-card {
-  background:    rgba(0,0,0,0.8);
+  background:    rgba(0,0,0,0.85);
   border:        1px solid var(--card-color, #FF9900);
-  border-radius: 6px;
-  height:        80px;
+  border-left:   4px solid var(--card-color, #FF9900);
+  border-radius: 4px;
+  height:        88px;
   display:       flex;
-  align-items:   flex-end;
-  padding:       8px;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding:       10px 10px 8px;
   cursor:        pointer;
   position:      relative;
   overflow:      hidden;
@@ -152,11 +225,21 @@
 }
 
 .scene-card__label {
-  font-size:      11px;
+  font-family:    'Antonio', 'Arial Narrow', 'Arial', sans-serif;
+  font-size:      12px;
   font-weight:    700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.10em;
   color:          var(--card-color, #FF9900);
   text-transform: uppercase;
+}
+
+.scene-card__key {
+  font-family:    'Antonio', 'Arial Narrow', 'Arial', sans-serif;
+  font-size:      9px;
+  letter-spacing: 0.08em;
+  color:          rgba(255,255,255,0.3);
+  text-transform: uppercase;
+  margin-top:     2px;
 }
 
 /* ── Settings rows ───────────────────────────────────────── */
@@ -164,9 +247,10 @@
   display:     flex;
   align-items: center;
   gap:         14px;
+  font-family: 'Antonio', 'Arial Narrow', 'Arial', sans-serif;
   font-size:   12px;
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.09em;
   color:       #FF9900;
 }
 

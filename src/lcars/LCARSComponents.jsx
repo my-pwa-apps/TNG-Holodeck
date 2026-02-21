@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import './lcars.css';
 
 /** Reusable LCARS-styled button */
-export function LCARSButton({ label, color = '#FF9900', onClick, small = false }) {
+export function LCARSButton({ label, color = '#FF9900', onClick, small = false, disabled = false }) {
   return (
     <button
       className={`lcars-btn ${small ? 'lcars-btn--small' : ''}`}
       style={{ '--btn-color': color }}
       onClick={onClick}
+      disabled={disabled}
+      aria-label={typeof label === 'string' ? label : undefined}
     >
       {label}
     </button>
@@ -23,13 +25,20 @@ export function LCARSTitle({ children, color = '#FF9900' }) {
   );
 }
 
-/** Scrolling data readout */
+/** Scrolling data readout — auto-scrolls to latest entry */
 export function LCARSDisplay({ lines = [] }) {
+  const endRef = useRef(null);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [lines]);
+
   return (
     <div className="lcars-display">
       {lines.map((l, i) => (
         <div key={i} className="lcars-display__line">{l}</div>
       ))}
+      <div ref={endRef} />
     </div>
   );
 }
