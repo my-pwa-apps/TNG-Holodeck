@@ -28,50 +28,48 @@ export const RING = {
   get outerR()  { return this.radius + this.halfWidth; },   // 11.10 m
   get totalH()  { return this.wallHeight + this.archHeight; },
 
-  // ── Modular segments (rib / door / LCARS spacing) ───────────────────────
-  segArc:    2.7,           // arc length per rib bay (~2.7 m)
-  get segCount() { return Math.ceil(TAU * this.radius / this.segArc); }, // ~23
+  // ── Modular segments (rib spacing) ────────────────────────────────────
+  segArc:    2.4,           // slightly tighter rib spacing (was 2.7)
+  get segCount() { return Math.ceil(TAU * this.radius / this.segArc); },
 
   lcarsEvery:  5,
   doorEvery:   7,
 
   // ── Wall section heights ────────────────────────────────────────────────
-  baseH:    0.075,          // baseboard LED strip  (0 → baseH)
-  bandLow:  0.78,           // black recessed band bottom
-  bandHigh: 1.44,           // black recessed band top
-  railH:    0.93,           // handrail centreline height
+  baseH:    0.32,           // large luminous base panel height
+  railH:    0.85,           // handrail height
+  bandLow:  1.20,           // black band bottom
+  bandHigh: 1.80,           // black band top
 
   // ── Door labels (cycled) ───────────────────────────────────────────────
   doorLabels: [
-    'CREW QUARTERS', 'SCIENCE LAB', 'TURBOLIFT',
-    'SICKBAY', 'ENGINEERING', 'CARGO BAY 2',
+    'ENGINEERING', 'SCIENCE LAB', 'TURBOLIFT',
+    'MEDICAL', 'CREW QUARTERS', 'CARGO BAY',
   ],
 
-  // ── Colour palette (TNG Season 2-7 corridor) ───────────────────────────
+  // ── Colour palette (Ref: TNG Engineering/Lower Deck corridor) ─────────
   palette: {
-    // Floor
-    carpetMain:    0x6E7D96,   // blue-grey carpet
-    carpetStripe:  0xB09CA6,   // pinkish-mauve centre stripe
+    // Floor: Blue centre path, pink/mauve edges
+    carpetMain:    0xB09CA6,   // pink/mauve (now the outer main carpet)
+    carpetStripe:  0x6E7D96,   // blue-grey (now the centre path)
 
     // Walls
-    wallPanel:     0x888D96,   // cool mid-grey wall sections
-    wallBlack:     0x0A0A0C,   // deep black recessed window band
+    wallPanel:     0x999DA0,   // light cool grey panels (glossy plastic look)
+    wallBlack:     0x080808,   // deep black recessed band
 
-    // LED baseboard strip (very bright emissive)
-    baseboard:     0xF2F0EC,
+    // Baseboard light (large, bright white)
+    baseboard:     0xFFFFFF,
 
-    // Structural ribs (the distinctive TNG tan/beige)
-    rib:           0xC8B898,
-
-    // Mahogany handrail
-    handrail:      0x3C1E0A,
+    // Structural elements
+    rib:           0xD4C4A0,   // tan/beige structural frames
+    handrail:      0x4A2510,   // dark reddish-mahogany
 
     // Ceiling
-    ceiling:       0xBDBBB4,   // warm light-grey arch ceiling
-    ceilPanel:     0xDDD9D0,   // diffuse emissive ceiling light tiles
+    ceiling:       0xCCCCCC,   // structural ceiling background
+    ceilPanel:     0xFFF8F0,   // bright white ceiling light panels
 
     // Doors
-    doorFrame:     0x3A3A3A,
-    doorPanel:     0xC4B488,
+    doorFrame:     0xD4C4A0,   // matches ribs
+    doorPanel:     0xB0B0B0,   // metallic grey
   },
 };
