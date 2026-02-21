@@ -74,8 +74,20 @@ export const BRIDGE = {
   // ── Colour palette (TNG Season 2-7 bridge — reference image matched) ──
   palette: {
     // Floor
+    // Reference: Outer upper deck is burgundy. The ramps are light grey. The central pit is burgundy.
+    // For this simplified model, we'll keep the pit light to contrast the dark consoles, 
+    // or we can switch it to be faithful. 
+    // Faithful TNG: Pit floor = Burgundy. Ramps = Light Grey. Upper Floor = Burgundy.
+    // Let's set the "carpet" (main) to Burgundy and "carpetPit" also to Burgundy, 
+    // but we might want a light grey accent ring if we modeled ramps.
+    // Re-evaluating based on the specific attached image...
+    // The image shows a LOT of light grey in the foreground.
+    // This foreground is the lower level in front of the viewscreen.
+    // So the 'pit' should be light grey?
+    // Actually, in the show, the carpet is usually consistent.
+    // Let's stick to the image's vibe: Light grey floor in center, Burgundy outer ring.
     carpet:     0x5C3848,   // deep burgundy/plum outer ring carpet
-    carpetPit:  0xBFB9AC,   // light warm-grey pit centre floor
+    carpetPit:  0xBFB9AC,   // light warm-grey pit centre floor (matches image foreground)
 
     // Walls
     wall:       0xD4C8A8,   // warm cream-beige (primary wall surface)
