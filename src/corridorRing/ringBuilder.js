@@ -42,8 +42,8 @@ export function buildCorridorRing() {
     carpetPath:   makeMat(P.carpetStripe, { roughness: 0.95, metalness: 0 }),
 
     // Both walls share same materials; side set per-mesh
-    wallPanel:    makeMat(P.wallPanel,  { roughness: 0.40, metalness: 0.30 }),
-    wallBlack:    makeMat(P.wallBlack,  { roughness: 0.15, metalness: 0.60 }),
+    wallPanel:    makeMat(P.wallPanel,  { roughness: 0.55, metalness: 0.0 }),
+    wallBlack:    makeMat(P.wallBlack,  { roughness: 0.15, metalness: 0.0 }),
     baseboard: new THREE.MeshStandardMaterial({
       color: new THREE.Color(P.baseboard),
       emissive: new THREE.Color(P.baseboard),
@@ -358,22 +358,24 @@ function buildDoors(mats, doorsOut) {
 // ═══════════════════════════════════════════════════════════════
 
 function buildLighting(root, resources) {
-  // Hemisphere provides the base ambient colour across the whole ring.
-  // Raised to 0.40 so wall panels show their slate-grey colour instead of
-  // rendering pure black (ring radius is 10 m — point lights at centre
-  // cannot reach the walls without a reasonable ambient base).
-  const hemi = new THREE.HemisphereLight(0x1C2235, 0x0A0810, 0.40);
+  // The corridor ring is 10 m radius — physically-correct inverse-square
+  // decay (Three.js r155+ default) drops PointLight intensity to near zero
+  // at that range.  Strategy:
+  //   1. HemisphereLight carries the base ambient colour (no distance falloff).
+  //   2. PointLights with decay=0 (constant; distance = hard cutoff) add the
+  //      warm baseboard glow tint and cool ceiling tint without washing out.
+
+  const hemi = new THREE.HemisphereLight(0x2A3550, 0x0C0810, 1.2);
   root.add(hemi);
 
-  // Baseboard zone fill — warm white near floor.
-  // Range extended to 22 m so it reaches both inner (8.9 m) and outer (11.1 m) walls.
-  const baseLight = new THREE.PointLight(0xF8F8F0, 2.2, 22);
-  baseLight.position.set(0, 0.30, 0);
+  // Warm baseboard fill — flat falloff, reaches both walls
+  const baseLight = new THREE.PointLight(0xF8F4E8, 1.4, 25, 0);   // decay=0
+  baseLight.position.set(0, 0.35, 0);
   root.add(baseLight);
   resources.accentLights.push(baseLight);
 
-  // Ceiling zone fill — cool white from ceiling tiles.
-  const ceilLight = new THREE.PointLight(0xF0F4FF, 1.8, 22);
+  // Cool ceiling fill — flat falloff
+  const ceilLight = new THREE.PointLight(0xEEF2FF, 1.2, 25, 0);   // decay=0
   ceilLight.position.set(0, RING.wallHeight * 0.95, 0);
   root.add(ceilLight);
   resources.accentLights.push(ceilLight);
