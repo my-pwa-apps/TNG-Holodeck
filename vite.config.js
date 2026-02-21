@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import glsl from 'vite-plugin-glsl';
 
 export default defineConfig({
+  base: '/TNG-Holodeck/',   // GitHub Pages serves from this subdirectory
   plugins: [
     react(),
     glsl({ include: ['**/*.vert', '**/*.frag', '**/*.glsl'] }),
