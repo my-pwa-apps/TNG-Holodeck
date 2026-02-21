@@ -90,63 +90,111 @@ export class HolodeckArch {
 
   _drawPanel(t) {
     const ctx = this._lcarsCtx;
-    const w   = this._lcarsCanvas.width;
-    const h   = this._lcarsCanvas.height;
+    const w   = this._lcarsCanvas.width;   // 512
+    const h   = this._lcarsCanvas.height;  // 384
 
-    ctx.fillStyle = '#000000';
+    // TNG LCARS palette
+    const C = {
+      orange:  '#FF9900',
+      dark:    '#CC6600',
+      blue:    '#3399FF',
+      purple:  '#CC99FF',
+      red:     '#FF4444',
+      green:   '#00FF88',
+      bg:      '#000000',
+      text:    '#FFFFFF',
+    };
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, w, h);
 
-    // Header
-    ctx.fillStyle = '#FF9900';
-    ctx.fillRect(0, 0, w, 36);
-    ctx.fillStyle = '#000';
-    ctx.font = 'bold 20px Arial';
-    ctx.fillText('HOLODECK CONTROL ARCH', 10, 26);
+    // ── TNG LCARS layout guide ─────────────────────────────
+    // Left bumper column (24px wide)
+    // Top elbow bar                                                 //
+    // Main content area                                             //
+    // Bottom status bar                                             //
 
-    // Sub header
-    ctx.fillStyle = '#CC99FF';
-    ctx.fillRect(0, 40, 120, 24);
-    ctx.fillStyle = '#000';
-    ctx.font = '13px Arial';
-    ctx.fillText('PROGRAMS', 6, 58);
+    // Left bumper column
+    this._roundRect(ctx, 0, 0, 24, h - 40, C.orange);
 
-    // Programme list buttons
-    const programs = [
-      { label: 'GRID ROOM',     color: '#3399FF' },
-      { label: 'BAKER STREET',  color: '#FF9900' },
-      { label: 'BRIDGE SIM',    color: '#CC6600' },
-      { label: 'ALIEN SURVEY',  color: '#CC99FF' },
-    ];
-    programs.forEach((p, i) => {
-      const y = 80 + i * 52;
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.roundRect(8, y, w - 16, 40, 8);
-      ctx.fill();
-      ctx.fillStyle = '#000';
-      ctx.font = 'bold 15px Arial';
-      ctx.fillText(p.label, 20, y + 26);
+    // Top elbow bar — spans across, creates the TNG corner bracket look
+    this._roundRect(ctx, 0, 0, w, 40, C.orange);
+    // Recreate black cutout at corner (TNG elbow)
+    ctx.fillStyle = C.bg;
+    ctx.fillRect(28, 0, 24, 36);
+
+    // Title text in top bar
+    ctx.fillStyle = C.bg;
+    ctx.font = 'bold 18px Arial Narrow, Arial';
+    ctx.letterSpacing = '0.12em';
+    ctx.fillText('HOLODECK ARCH', 60, 28);
+
+    // Stardate (top right)
+    ctx.fillStyle = C.bg;
+    ctx.font = 'bold 13px Arial Narrow, Arial';
+    ctx.fillText(`SD ${(47634 + t * 8.4).toFixed(1)}`, w - 110, 28);
+
+    // ── Left vertical accent bars (below elbow) ──────────────
+    const barColors = [C.blue, C.purple, C.orange, C.dark];
+    barColors.forEach((c, i) => {
+      const y0 = 48 + i * 48;
+      this._roundRect(ctx, 28, y0, 18, 36, c);
     });
 
-    // Status bar
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(0, h - 44, w, 44);
-    ctx.fillStyle = '#00FF88';
-    ctx.font = '11px monospace';
-    ctx.fillText('SAFETY PROTOCOLS: ENABLED', 10, h - 28);
-    ctx.fillStyle = '#3399FF';
-    ctx.fillText(`STARDATE ${(2.37e5 + t * 12).toFixed(1)}`, 10, h - 10);
+    // ── Program selector buttons (main content area) ─────────
+    const programs = [
+      { label: 'GRID ROOM',     key: 'grid',     color: C.blue   },
+      { label: 'BAKER STREET',  key: 'sherlock', color: C.orange },
+      { label: 'BRIDGE SIM',    key: 'bridge',   color: C.dark   },
+      { label: 'ALIEN SURVEY',  key: 'alien',    color: C.purple },
+    ];
 
-    // Animated scan line
-    const scanY = ((t * 60) % (h - 80)) + 40;
-    ctx.strokeStyle = 'rgba(255,200,0,0.15)';
-    ctx.lineWidth   = 2;
+    programs.forEach((p, i) => {
+      const bx = 54, by = 52 + i * 56, bw = w - 62, bh = 42;
+      this._roundRect(ctx, bx, by, bw, bh, p.color);
+      ctx.fillStyle = C.bg;
+      ctx.font = 'bold 15px Arial Narrow, Arial';
+      ctx.fillText(p.label, bx + 14, by + 27);
+
+      // Animated activity bar on right of each button
+      const fill = 0.3 + 0.5 * Math.abs(Math.sin(t * 0.6 + i * 1.3));
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(bx + bw - 70, by + 8, 60, 8);
+      ctx.fillStyle = C.green;
+      ctx.fillRect(bx + bw - 70, by + 8, 60 * fill, 8);
+    });
+
+    // ── Status section ──────────────────────────────────
+    const sy = h - 60;
+    ctx.strokeStyle = C.orange;
+    ctx.lineWidth   = 1;
+    ctx.beginPath(); ctx.moveTo(54, sy); ctx.lineTo(w - 8, sy); ctx.stroke();
+
+    // Safety protocols status — always shown
+    ctx.fillStyle = C.green;
     ctx.beginPath();
-    ctx.moveTo(0, scanY);
-    ctx.lineTo(w, scanY);
-    ctx.stroke();
+    ctx.arc(66, sy + 16, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = C.green;
+    ctx.font = 'bold 11px Arial Narrow, Arial';
+    ctx.fillText('SAFETY PROTOCOLS ENABLED', 78, sy + 21);
+
+    // Animated scan-line across panel
+    const scanY = sy + 38 + 8 * Math.sin(t * 1.5);
+    ctx.strokeStyle = `rgba(255,153,0,0.12)`;
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath(); ctx.moveTo(54, scanY); ctx.lineTo(w - 8, scanY); ctx.stroke();
 
     this._lcarsTex.needsUpdate = true;
+  }
+
+  /** Filled rounded rectangle helper */
+  _roundRect(ctx, x, y, w, h, color, r = 10) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r);
+    ctx.fill();
   }
 
   _buildKeypad() {

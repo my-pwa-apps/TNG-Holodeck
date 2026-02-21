@@ -119,9 +119,9 @@ export class HolodeckEngine {
 
     this.bloomPass = new UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
-      1.4,   // strength
-      0.6,   // radius
-      0.18   // threshold
+      1.8,   // strength  — strong enough for warm grid-line glow
+      0.45,  // radius    — tight radius keeps the glow close to the lines
+      0.16   // threshold — grid lines at ~1.0 brightness: well above threshold
     );
     this.composer.addPass(this.bloomPass);
   }

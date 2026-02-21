@@ -10,15 +10,38 @@
 #hud {
   position:       fixed;
   inset:          0;
-  pointer-events: none;   /* let clicks pass to canvas by default */
+  pointer-events: none;
   z-index:        10;
-  font-family:    'Arial', sans-serif;
+  font-family:    'Arial Narrow', 'Arial', sans-serif;
+}
+
+/* TNG LCARS left-side bumper column */
+#hud::before {
+  content:          '';
+  position:         absolute;
+  top:              0;
+  left:             0;
+  width:            18px;
+  height:           100%;
+  background:       linear-gradient(
+    to bottom,
+    #FF9900 0%,   #FF9900 22%,
+    #000    22%,  #000    24%,
+    #3399FF 24%,  #3399FF 40%,
+    #000    40%,  #000    42%,
+    #CC99FF 42%,  #CC99FF 58%,
+    #000    58%,  #000    60%,
+    #CC6600 60%,  #CC6600 78%,
+    #000    78%,  #000    80%,
+    #FF9900 80%,  #FF9900 100%
+  );
+  pointer-events:   none;
 }
 
 #hud-status {
   position:       absolute;
   top:            16px;
-  left:           16px;
+  left:           30px;
   display:        flex;
   flex-direction: column;
   gap:            6px;
@@ -28,30 +51,43 @@
 #hud-actions {
   position:       absolute;
   top:            16px;
-  right:          80px;   /* leave space for VR button */
+  right:          80px;
   display:        flex;
   gap:            8px;
   align-items:    center;
   pointer-events: all;
 }
 
+/* TNG-style top bar behind the action buttons */
+#hud-actions::before {
+  content:   '';
+  position:  absolute;
+  top:       -8px;
+  left:      -12px;
+  right:     -12px;
+  height:    3px;
+  background: #FF9900;
+  border-radius: 2px;
+}
+
 #hud-log {
   position:       absolute;
   bottom:         48px;
-  left:           16px;
+  left:           30px;
   width:          320px;
   pointer-events: none;
 }
 
 #hud-hint {
   position:       absolute;
-  bottom:         16px;
+  bottom:         12px;
   left:           50%;
   transform:      translateX(-50%);
   font-size:      10px;
-  letter-spacing: 0.08em;
-  color:          rgba(255,179,0,0.5);
+  letter-spacing: 0.12em;
+  color:          rgba(255,179,0,0.45);
   pointer-events: none;
+  text-transform: uppercase;
 }
 
 .frozen-badge {

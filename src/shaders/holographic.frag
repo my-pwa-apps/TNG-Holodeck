@@ -38,8 +38,10 @@ void main() {
   vec3  edgeCol   = vec3(0.18, 0.55, 1.0) * fresnel * 2.2;
 
   // ── Final ─────────────────────────────────────────────
+  // TNG holodeck: scenes look nearly SOLID — only edge Fresnel glow
+  // and the scanline shimmer hint at the holographic nature.
   vec3  col   = (desat + vec3(glitch * 0.03, 0.0, 0.0)) * scan + edgeCol;
-  float alpha = uOpacity + fresnel * 0.15;
+  float alpha = uOpacity + fresnel * 0.06; // nearly opaque (0.94+)
 
   gl_FragColor = vec4(col, alpha);
 }

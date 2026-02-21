@@ -106,33 +106,82 @@ export class BridgeScene {
   }
 
   _drawLCARS(ctx, w, h, t) {
-    ctx.fillStyle = '#000000';
+    // TNG LCARS palette
+    const C = {
+      orange: '#FF9900', dark: '#CC6600',
+      blue:   '#3399FF', purple: '#CC99FF',
+      red:    '#FF4444', green: '#00FF88',
+      bg:     '#000000',
+    };
+
+    ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, w, h);
 
-    const colors = ['#FF9900', '#CC6600', '#3399FF', '#CC99FF', '#FF6633'];
+    // ── Left bumper bars (TNG fingerprint) ────────────────────────────
+    const bumpers = [C.orange, C.blue, C.purple, C.dark];
+    bumpers.forEach((c, i) => {
+      ctx.fillStyle = c;
+      ctx.beginPath();
+      ctx.roundRect(0, 4 + i * 44, 22, 36, 10);
+      ctx.fill();
+    });
 
-    // Header bar
-    ctx.fillStyle = '#FF9900';
-    ctx.fillRect(0, 0, w, 28);
-    ctx.fillStyle = '#000';
-    ctx.font = 'bold 16px Arial';
-    ctx.fillText('TACTICAL SYSTEMS ACTIVE', 12, 20);
+    // ── Top header bar ────────────────────────────────────────────────
+    ctx.fillStyle = C.orange;
+    ctx.beginPath();
+    ctx.roundRect(26, 0, w - 26, 36, [0, 10, 0, 0]);
+    ctx.fill();
 
-    // Animated data bars
-    for (let i = 0; i < 6; i++) {
-      const y     = 40 + i * 32;
-      const fill  = 0.3 + 0.6 * Math.abs(Math.sin(t * 0.8 + i * 1.1));
-      ctx.fillStyle = colors[i % colors.length];
-      ctx.fillRect(8, y, w * fill - 16, 18);
+    ctx.fillStyle = C.bg;
+    ctx.font = 'bold 15px Arial Narrow, Arial';
+    ctx.fillText('TACTICAL SYSTEMS', 38, 24);
+    ctx.textAlign = 'right';
+    ctx.fillText(`SD ${(47634 + t * 8.4).toFixed(1)}`, w - 8, 24);
+    ctx.textAlign = 'left';
+
+    // ── System status bars ────────────────────────────────────────────
+    const systems = [
+      { label: 'SHIELDS',   color: C.blue   },
+      { label: 'WEAPONS',   color: C.orange },
+      { label: 'PROPULSION',color: C.purple },
+      { label: 'LIFE SUPP', color: C.dark   },
+      { label: 'SENSORS',   color: C.blue   },
+    ];
+
+    systems.forEach((sys, i) => {
+      const y    = 46 + i * 40;
+      const fill = 0.6 + 0.35 * Math.abs(Math.sin(t * 0.7 + i * 1.4));
+
+      // Label pill
+      ctx.fillStyle = sys.color;
+      ctx.beginPath();
+      ctx.roundRect(26, y, 90, 28, 4);
+      ctx.fill();
+      ctx.fillStyle = C.bg;
+      ctx.font = 'bold 11px Arial Narrow, Arial';
+      ctx.fillText(sys.label, 32, y + 19);
+
+      // Fill bar
+      ctx.fillStyle = '#111';
+      ctx.fillRect(122, y + 6, w - 130, 16);
+      ctx.fillStyle = sys.color;
+      ctx.fillRect(122, y + 6, (w - 130) * fill, 16);
+
+      // Percentage
       ctx.fillStyle = '#fff';
-      ctx.font = '11px monospace';
-      ctx.fillText(`SYS-${(i + 1).toString().padStart(2, '0')}: ${Math.round(fill * 100)}%`, 12, y + 13);
-    }
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(`${Math.round(fill * 100)}%`, w - 6, y + 19);
+      ctx.textAlign = 'left';
+    });
 
-    // Timestamp
-    ctx.fillStyle = '#3399FF';
-    ctx.font = '10px monospace';
-    ctx.fillText(`SD ${Math.floor(t * 10) % 99999}`, w - 80, h - 8);
+    // ── Animated scan line ────────────────────────────────────────────
+    const scanY = 40 + ((t * 55) % (h - 50));
+    ctx.strokeStyle = 'rgba(255,153,0,0.10)';
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.moveTo(26, scanY); ctx.lineTo(w, scanY);
+    ctx.stroke();
   }
 
   _buildViewscreen() {
