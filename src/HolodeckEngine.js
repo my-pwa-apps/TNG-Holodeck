@@ -436,6 +436,7 @@ export class HolodeckEngine {
 
     const doLoad = () => {
       if (SceneClass) {
+        this.holoRoom._group.visible = true;
         this._currentSceneModule = new SceneClass(this.scene, this.audio);
         const root = this._currentSceneModule.load();
         this.matSys.materialize([root], () => {

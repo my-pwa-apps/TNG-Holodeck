@@ -246,18 +246,16 @@ export class MaterializationSystem {
       this._active = false;
       this._particles.visible = false;
       this._removeClippingPlane();
-      if (this._onComplete) {
-        this._onComplete();
-        this._onComplete = null;
-      }
+      const onComplete = this._onComplete;
+      this._onComplete = null;
+      if (onComplete) onComplete();
     } else if (this._direction < 0 && this._progress <= 0) {
       this._active = false;
       this._particles.visible = false;
       this._removeClippingPlane();
-      if (this._onComplete) {
-        this._onComplete();
-        this._onComplete = null;
-      }
+      const onComplete = this._onComplete;
+      this._onComplete = null;
+      if (onComplete) onComplete();
     }
   }
 
