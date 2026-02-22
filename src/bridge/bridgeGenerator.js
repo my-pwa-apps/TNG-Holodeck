@@ -16,6 +16,7 @@ import {
   createLCARSCanvas, drawLCARS, createStaticLCARSTexture,
   createCarpetTexture, createWallTexture, createStarfieldCanvas,
 } from './lcarsTexture.js';
+import { fabricNormal, metalNormal, metalRoughness } from '../utils/textureUtils.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -41,8 +42,8 @@ export function buildBridge() {
 
   // ── Shared materials (reused across meshes → draw-call batching) ──────
   const mats = {
-    carpet:     makeMat(P.carpet,     { roughness: 0.92, metalness: 0.0, map: createCarpetTexture(P.carpet) }),           // deep burgundy outer ring
-    carpetPit:  makeMat(P.carpetPit,  { roughness: 0.88, metalness: 0.0, map: createCarpetTexture(P.carpetPit) }),           // light grey pit floor
+    carpet:     makeMat(P.carpet,     { roughness: 0.92, metalness: 0.0, map: createCarpetTexture(P.carpet),    normalMap: fabricNormal(6), normalScale: new THREE.Vector2(0.55, 0.55) }),  // deep burgundy outer ring
+    carpetPit:  makeMat(P.carpetPit,  { roughness: 0.88, metalness: 0.0, map: createCarpetTexture(P.carpetPit), normalMap: fabricNormal(6), normalScale: new THREE.Vector2(0.55, 0.55) }),  // light grey pit floor
     wall:       makeMat(P.wall,       { roughness: 0.78, side: THREE.BackSide, metalness: 0.0, map: createWallTexture(P.wall) }),
     wallPanel:  makeMat(P.wallPanel,  { roughness: 0.6, metalness: 0.0, map: createWallTexture(P.wallPanel) }),
     wallBand:   makeMat(P.wallBand,   { roughness: 0.5, metalness: 0.0 }),
@@ -52,9 +53,9 @@ export function buildBridge() {
     wood:       makeMat(P.wood,       { roughness: 0.35, metalness: 0.0 }),
     seat:       makeMat(P.seat,       { roughness: 0.72, metalness: 0.0 }),           // maroon/reddish-brown
     chairFrame: makeMat(P.frame,      { roughness: 0.4, metalness: 0.5 }),
-    metal:      makeMat(P.metal,      { roughness: 0.25, metalness: 0.7 }),
-    doorFrame:  makeMat(P.doorFrame,  { roughness: 0.4, metalness: 0.5 }),
-    doorPanel:  makeMat(P.doorPanel,  { roughness: 0.55, metalness: 0.0 }),           // charcoal grey
+    metal:      makeMat(P.metal,      { roughness: 0.25, metalness: 0.7, normalMap: metalNormal(3), normalScale: new THREE.Vector2(0.7, 0.7), roughnessMap: metalRoughness(3) }),
+    doorFrame:  makeMat(P.doorFrame,  { roughness: 0.4,  metalness: 0.5, normalMap: metalNormal(2), normalScale: new THREE.Vector2(0.5, 0.5) }),
+    doorPanel:  makeMat(P.doorPanel,  { roughness: 0.55, metalness: 0.0, normalMap: metalNormal(2), normalScale: new THREE.Vector2(0.4, 0.4) }),  // charcoal grey
     vsFrame:    makeMat(P.vsFrame,    { roughness: 0.2, metalness: 0.6 }),
     vsSurround: makeMat(P.vsSurround, { roughness: 0.6, metalness: 0.0 }),
   };

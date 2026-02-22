@@ -19,6 +19,7 @@
 import * as THREE from 'three';
 import { RING, TAU } from './ringConfig.js';
 import { createLCARSPanelTexture, createCarpetTexture, createWallTexture } from './textures.js';
+import { fabricNormal, metalNormal } from '../utils/textureUtils.js';
 
 const _obj = new THREE.Object3D();
 
@@ -38,8 +39,8 @@ export function buildCorridorRing() {
   const P    = RING.palette;
 
   const mats = {
-    carpetMain:   makeMat(P.carpetMain,   { roughness: 0.95, metalness: 0, map: createCarpetTexture(P.carpetMain) }),
-    carpetPath:   makeMat(P.carpetStripe, { roughness: 0.95, metalness: 0, map: createCarpetTexture(P.carpetStripe) }),
+    carpetMain:   makeMat(P.carpetMain,   { roughness: 0.95, metalness: 0, map: createCarpetTexture(P.carpetMain),   normalMap: fabricNormal(6), normalScale: new THREE.Vector2(0.55, 0.55) }),
+    carpetPath:   makeMat(P.carpetStripe, { roughness: 0.95, metalness: 0, map: createCarpetTexture(P.carpetStripe), normalMap: fabricNormal(6), normalScale: new THREE.Vector2(0.55, 0.55) }),
 
     // Both walls share same materials; side set per-mesh
     wallPanel:    makeMat(P.wallPanel,  { roughness: 0.45, metalness: 0.1, map: createWallTexture(P.wallPanel) }),
@@ -60,8 +61,8 @@ export function buildCorridorRing() {
       emissiveIntensity: 1.8, roughness: 0.40,
     }),
 
-    doorFrame: makeMat(P.doorFrame, { roughness: 0.65, metalness: 0.05 }),
-    doorPanel: makeMat(P.doorPanel, { roughness: 0.50, metalness: 0.35 }),
+    doorFrame: makeMat(P.doorFrame, { roughness: 0.65, metalness: 0.05, normalMap: metalNormal(2), normalScale: new THREE.Vector2(0.5, 0.5) }),
+    doorPanel: makeMat(P.doorPanel, { roughness: 0.50, metalness: 0.35, normalMap: metalNormal(2), normalScale: new THREE.Vector2(0.6, 0.6) }),
   };
 
   const doors     = [];
