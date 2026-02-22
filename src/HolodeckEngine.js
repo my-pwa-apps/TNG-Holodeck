@@ -36,9 +36,13 @@ export class HolodeckEngine {
     this._unsubscribers      = [];
 
     // Pre-allocated scratch objects to avoid per-frame GC pressure
-    this._moveDir      = new THREE.Vector3();
-    this._grabRaycaster = new THREE.Raycaster();
-    this._grabMatrix    = new THREE.Matrix4();
+    this._moveDir       = new THREE.Vector3();
+    this._grabRaycaster  = new THREE.Raycaster();
+    this._grabMatrix     = new THREE.Matrix4();
+    this._headQuat       = new THREE.Quaternion();
+    this._headFwd        = new THREE.Vector3();
+    this._headRight      = new THREE.Vector3();
+    this._desktopEuler   = new THREE.Euler(0, 0, 0, 'YXZ');
 
     this._initRenderer();
     this._initScene();
@@ -291,26 +295,31 @@ export class HolodeckEngine {
 
     // Use the actual XR camera world quaternion for head direction so that
     // "forward" always matches where the player is physically looking.
+    // Re-use pre-allocated scratch objects to avoid per-frame GC at 90 fps.
     const xrCam = this.renderer.xr.getCamera();
-    const headQuat = new THREE.Quaternion();
-    xrCam.getWorldQuaternion(headQuat);
+    xrCam.getWorldQuaternion(this._headQuat);
 
     // Project head -Z onto the XZ (ground) plane
-    const headFwd = new THREE.Vector3(0, 0, -1).applyQuaternion(headQuat);
-    headFwd.y = 0;
-    headFwd.lengthSq() > 0.001 ? headFwd.normalize() : headFwd.set(0, 0, -1);
+    this._headFwd.set(0, 0, -1).applyQuaternion(this._headQuat);
+    this._headFwd.y = 0;
+    this._headFwd.lengthSq() > 0.001
+      ? this._headFwd.normalize()
+      : this._headFwd.set(0, 0, -1);
 
-    const headRight = new THREE.Vector3()
-      .crossVectors(headFwd, new THREE.Vector3(0, 1, 0))
+    this._headRight
+      .crossVectors(this._headFwd, THREE.Object3D.DEFAULT_UP)
       .normalize();
 
     for (const src of session.inputSources) {
       if (!src.gamepad) continue;
-      // Quest 3 / Touch Pro: axes [2]=thumbstick-X  [3]=thumbstick-Y
-      // (axes [0] and [1] are the capacitive-touch position, ignore them)
       const axes = src.gamepad.axes;
-      const ax = axes[2] ?? 0;
-      const ay = axes[3] ?? 0;
+
+      // Quest 3 / Touch Pro: thumbstick is axes[2],[3].
+      // Many other controllers (Index, Vive, WMR): thumbstick is axes[0],[1].
+      // Detect by checking whether the gamepad has > 2 axes.
+      const ofs = axes.length > 2 ? 2 : 0;
+      const ax  = axes[ofs]     ?? 0;
+      const ay  = axes[ofs + 1] ?? 0;
 
       if (src.handedness === 'left') {
         // Left stick → smooth translation in head-look direction
@@ -318,8 +327,8 @@ export class HolodeckEngine {
         //   stick-X: strafe right (+1) / left (-1)
         const mx = Math.abs(ax) > DEAD_ZONE ? ax : 0;
         const my = Math.abs(ay) > DEAD_ZONE ? ay : 0;
-        this.cameraRig.position.addScaledVector(headFwd,  -my * MOVE_SPEED * dt);
-        this.cameraRig.position.addScaledVector(headRight,  mx * MOVE_SPEED * dt);
+        this.cameraRig.position.addScaledVector(this._headFwd,   -my * MOVE_SPEED * dt);
+        this.cameraRig.position.addScaledVector(this._headRight,  mx * MOVE_SPEED * dt);
       }
 
       if (src.handedness === 'right') {
@@ -331,6 +340,9 @@ export class HolodeckEngine {
         }
       }
     }
+
+    // Clamp rig Y so the player can never fall below the floor
+    if (this.cameraRig.position.y < 0) this.cameraRig.position.y = 0;
   }
 
   _onPhaserFire(controller) {
@@ -540,9 +552,9 @@ export class HolodeckEngine {
 
     if (dir.lengthSq() > 0) {
       dir.normalize();
-      // Apply only Y rotation for flat movement
-      const euler = new THREE.Euler(0, this.camera.rotation.y, 0, 'YXZ');
-      dir.applyEuler(euler);
+      // Apply only Y rotation for flat movement (reuse pre-allocated Euler)
+      this._desktopEuler.set(0, this.camera.rotation.y, 0);
+      dir.applyEuler(this._desktopEuler);
       this.cameraRig.position.addScaledVector(dir, speed);
     }
   }
