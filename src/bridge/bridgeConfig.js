@@ -71,41 +71,29 @@ export const BRIDGE = {
     { deg: 128, label: 'TACTICAL II' },
   ],
 
-  // ── Colour palette (TNG Season 2-7 bridge — reference image matched) ──
+  // ── Colour palette (TNG Season 2-7 bridge) ──
   palette: {
     // Floor
-    // Reference: Outer upper deck is burgundy. The ramps are light grey. The central pit is burgundy.
-    // For this simplified model, we'll keep the pit light to contrast the dark consoles, 
-    // or we can switch it to be faithful. 
-    // Faithful TNG: Pit floor = Burgundy. Ramps = Light Grey. Upper Floor = Burgundy.
-    // Let's set the "carpet" (main) to Burgundy and "carpetPit" also to Burgundy, 
-    // but we might want a light grey accent ring if we modeled ramps.
-    // Re-evaluating based on the specific attached image...
-    // The image shows a LOT of light grey in the foreground.
-    // This foreground is the lower level in front of the viewscreen.
-    // So the 'pit' should be light grey?
-    // Actually, in the show, the carpet is usually consistent.
-    // Let's stick to the image's vibe: Light grey floor in center, Burgundy outer ring.
-    carpet:     0x5C3848,   // deep burgundy/plum outer ring carpet
-    carpetPit:  0xBFB9AC,   // light warm-grey pit centre floor (matches image foreground)
+    carpet:     0x6B3E4A,   // deep burgundy/plum outer ring carpet
+    carpetPit:  0xC4BCA8,   // light warm-grey/tan pit centre floor
 
     // Walls
-    wall:       0xD4C8A8,   // warm cream-beige (primary wall surface)
-    wallPanel:  0xC4B898,   // slightly darker warm panel variant
-    wallBand:   0x8A7862,   // medium warm-brown accent bands
+    wall:       0xD8CDB8,   // warm cream-beige (primary wall surface)
+    wallPanel:  0xC8BCA8,   // slightly darker warm panel variant
+    wallBand:   0x8C7A68,   // medium warm-brown accent bands
 
     // Ceiling dome
-    ceiling:    0xE2DBC8,   // warm off-white dome surface
-    domeGlow:   0xFFF8F0,   // near-white backlit panel glow
-    domeRib:    0xC8B880,   // tan/gold structural dome ribs
+    ceiling:    0xE8E0D0,   // warm off-white dome surface
+    domeGlow:   0xFFFAF5,   // near-white backlit panel glow
+    domeRib:    0xCCBC88,   // tan/gold structural dome ribs
 
     // Consoles
-    console:    0xD4C8A8,   // warm cream/tan console body (matches walls)
+    console:    0xD8CDB8,   // warm cream/tan console body (matches walls)
     consolePanel: 0x1A1A1A, // dark charcoal for the screen surrounds
-    wood:       0x7C4A28,   // rich mahogany handrail / trim
+    wood:       0x6A3A26,   // rich mahogany handrail / trim
 
-    // Seating — cream/ivory (NOT red)
-    seat:       0xD8CAA0,   // warm cream upholstered chairs
+    // Seating
+    seat:       0x7A2A2A,   // maroon/reddish-brown upholstered chairs
 
     // Misc
     frame:      0x3C3C3C,
@@ -113,6 +101,6 @@ export const BRIDGE = {
     doorFrame:  0x444444,
     doorPanel:  0x787878,   // charcoal grey sliding panels
     vsFrame:    0x1A1A1A,
-    vsSurround: 0xD4C8A8,   // match wall
+    vsSurround: 0xD8CDB8,   // match wall
   },
 };

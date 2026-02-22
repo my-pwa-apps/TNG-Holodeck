@@ -36,8 +36,9 @@ export class HolodeckEngine {
     this._unsubscribers      = [];
 
     // Pre-allocated scratch objects to avoid per-frame GC pressure
-    this._moveDir       = new THREE.Vector3();
+    this._moveDir        = new THREE.Vector3();
     this._grabRaycaster  = new THREE.Raycaster();
+    this._interactRay    = new THREE.Raycaster();
     this._grabMatrix     = new THREE.Matrix4();
     this._headQuat       = new THREE.Quaternion();
     this._headFwd        = new THREE.Vector3();
@@ -152,13 +153,24 @@ export class HolodeckEngine {
     window.addEventListener('keydown', e => {
       this.keys[e.code] = true;
       if (e.code === 'Escape') this.plControls.unlock();
+      // 'E' — interact with LCARS door keypad in front of the player
+      if (e.code === 'KeyE' && this.plControls.isLocked) {
+        this._onInteract(this.camera);
+      }
     });
     window.addEventListener('keyup', e => {
       this.keys[e.code] = false;
     });
 
     this.canvas.addEventListener('click', () => {
-      if (!this.renderer.xr.isPresenting) this.plControls.lock();
+      if (!this.renderer.xr.isPresenting) {
+        if (!this.plControls.isLocked) {
+          this.plControls.lock();
+        } else {
+          // Click while locked → interact with door pads
+          this._onInteract(this.camera);
+        }
+      }
     });
   }
 
@@ -504,19 +516,51 @@ export class HolodeckEngine {
   _onGrab(controller) {
     const raycaster  = this._grabRaycaster;
     raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-    
+
     // Extract rotation properly
     const tempQuat = new THREE.Quaternion().setFromRotationMatrix(controller.matrixWorld);
     raycaster.ray.direction.set(0, 0, -1).applyQuaternion(tempQuat);
+    raycaster.far = 4.0;   // only interact within arm's reach
 
+    // First check for door pads
+    const pads = [];
+    this.scene.traverse(o => { if (o.userData.doorPad) pads.push(o); });
+    const padHits = raycaster.intersectObjects(pads, false);
+    if (padHits.length) {
+      this._fireDoorInteract(padHits[0].object);
+      return;
+    }
+
+    // Then try to grab interactables
+    raycaster.far = Infinity;
     const interactables = [];
     this.scene.traverse(o => { if (o.userData.interactable) interactables.push(o); });
-
     const hits = raycaster.intersectObjects(interactables, true);
     if (hits.length) {
       this._grabTarget = hits[0].object;
       controller.attach(this._grabTarget);
     }
+  }
+
+  // ── Interact (desktop camera ray or XR pad hit) ────────────────────────
+  _onInteract(camera) {
+    const ray = this._interactRay;
+    ray.setFromCamera({ x: 0, y: 0 }, camera);
+    ray.far = 5.0;   // interact within 5 m
+
+    const pads = [];
+    this.scene.traverse(o => { if (o.userData.doorPad) pads.push(o); });
+    const hits = ray.intersectObjects(pads, false);
+    if (hits.length) {
+      this._fireDoorInteract(hits[0].object);
+    }
+  }
+
+  _fireDoorInteract(padMesh) {
+    const index = padMesh.userData.doorIndex;
+    if (index === undefined) return;
+    this._currentSceneModule?.toggleDoor?.(index);
+    this.audio.play?.('door_slide');
   }
 
   _onRelease() {

@@ -31,9 +31,6 @@ export class CorridorScene {
 
     // Pre-allocated scratch vector (avoids per-frame GC)
     this._camWorldPos = new THREE.Vector3();
-
-    // Track which doors played their sound so we fire once per open/close
-    this._doorSoundPlayed = [];
   }
 
   // ── Load ──────────────────────────────────────────────────────────────
@@ -108,36 +105,15 @@ export class CorridorScene {
       clampToRing(cam.parent.position);
     }
 
-    // ── Door proximity animation ────────────────────────────────
-    if (cam) {
-      cam.getWorldPosition(this._camWorldPos);
-      const cp = this._camWorldPos;
-
-      for (let i = 0; i < this._res.doors.length; i++) {
-        const door = this._res.doors[i];
-        const dx   = Math.sin(door.theta) * door.wallR;
-        const dz   = Math.cos(door.theta) * door.wallR;
-        const dist = Math.sqrt((cp.x - dx) ** 2 + (cp.z - dz) ** 2);
-        const wasOpen = door.open;
-        door.open  = dist < 2.5;
-
-        // Play door slide sound on state change (once per transition)
-        if (door.open !== wasOpen) {
-          if (!this._doorSoundPlayed[i]) {
-            this._audio.play?.('door_slide');
-            this._doorSoundPlayed[i] = true;
-          }
-        } else {
-          this._doorSoundPlayed[i] = false;
-        }
-
+    // ── Door slide animation (keypad-driven, no proximity) ──────
+    if (this._res?.doors?.length) {
+      for (const door of this._res.doors) {
         const target = door.open ? 1 : 0;
-        door.t += (target - door.t) * 6 * dt;
+        door.t += (target - door.t) * 8 * dt;
         door.t  = Math.max(0, Math.min(1, door.t));
-
-        const slide = 0.6 * door.t;
-        door.leftPanel.position.x  = -0.38 - slide;
-        door.rightPanel.position.x =  0.38 + slide;
+        const slide = 0.68 * door.t;
+        door.leftPanel.position.x  = -0.40 - slide;
+        door.rightPanel.position.x =  0.40 + slide;
       }
     }
 
@@ -155,6 +131,15 @@ export class CorridorScene {
         l.intensity = on ? 3.0 : 0.5;
       });
     }
+  }
+
+  // ── Door keypad interaction ───────────────────────────────────────────
+
+  toggleDoor(index) {
+    const door = this._res?.doors?.[index];
+    if (!door) return;
+    door.open = !door.open;
+    this._audio.play?.('door_slide');
   }
 
   // ── Red Alert toggle ──────────────────────────────────────────────────

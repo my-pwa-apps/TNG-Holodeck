@@ -5,9 +5,9 @@
  * Angle convention: theta=0 → +Z axis; positive theta rotates CCW from above.
  *
  * Reference aesthetics: TNG Enterprise-D corridor —
- *   warm tan/beige structural ribs, cool-grey wall panels, large black
+ *   warm tan/beige structural ribs, warm cream-beige wall panels, large black
  *   recessed window band mid-wall, bright white LED baseboard strips at
- *   floor level, blue-grey carpet with pink-mauve centre stripe,
+ *   floor level, light tan/beige carpet with darker tan/brown side panels,
  *   dark mahogany handrail, diffuse white recessed ceiling panels.
  */
 
@@ -49,31 +49,31 @@ export const RING = {
     'SICKBAY', 'ENGINEERING', 'CARGO BAY',
   ],
 
-  // ── Colour palette (matched to reference render) ──────────────────────
+  // ── Colour palette (TNG corridor) ──────────────────────
   palette: {
-    // Floor — blue-grey centre, pink/mauve edges
-    carpetMain:    0x9A8A8A,   // pink/mauve side panels
-    carpetStripe:  0x5A6A84,   // blue-grey centre path
+    // Floor
+    carpetMain:    0x8C7A68,   // darker tan/brown side panels
+    carpetStripe:  0xC8BCA8,   // light tan/beige centre path
 
     // Walls (symmetric both sides)
-    wallPanel:     0x9AA0A8,   // lighter cool grey/blueish (horizontal panels)
+    wallPanel:     0xD8CDB8,   // warm cream-beige (horizontal panels)
     wallBlack:     0x080808,   // deep black recessed horizontal band
 
     // Bright white luminous baseboard strip
     baseboard:     0xF8F8F8,   // pure white
 
     // Structural portal frames (warm tan/sandy beige)
-    rib:           0xD8C098,
+    rib:           0xCCBC88,
 
     // Multi-rail mahogany handrail (outer wall)
     handrail:      0x6A3A26,
 
-    // Ceiling — grey structural surface (matches walls) + bright white light tiles
-    ceiling:       0x9AA0A8,   // grey — ceiling frame matches wall colour
-    ceilPanel:     0xF6F6F6,   // bright white recessed ceiling light tiles
+    // Ceiling
+    ceiling:       0xD8CDB8,   // warm cream-beige — ceiling frame matches wall colour
+    ceilPanel:     0xFFFAF5,   // bright white recessed ceiling light tiles
 
     // Doors
-    doorFrame:     0xD8C098,   // match ribs
-    doorPanel:     0x9AA0A8,   // match wall panels
+    doorFrame:     0xCCBC88,   // match ribs
+    doorPanel:     0x787878,   // charcoal grey sliding panels
   },
 };

@@ -2,14 +2,14 @@
  * ringBuilder.js — Enterprise-D circular corridor.
  *
  * Reference: TNG corridor render showing:
- *   • Both walls SYMMETRIC: stacked cool-grey horizontal panels,
+ *   • Both walls SYMMETRIC: stacked warm-beige horizontal panels,
  *     deep black recessed band at mid-wall (~1.0–1.3 m), bright white
  *     luminous baseboard strip at floor level.
  *   • Portal-frame RIBS every ~2.6 m: tan/beige two-column frames with
  *     flat ceiling crossbeam, columns flare into organic bracket caps.
  *   • FLAT ceiling (not arched) with large bright-white recessed light tiles.
  *   • Outer wall multi-rail mahogany HANDRAIL (3 stacked horizontal rails).
- *   • Floor: blue-grey centre carpet, pink/mauve diagonal-edged side panels.
+ *   • Floor: light tan/beige centre carpet, darker tan/brown side panels.
  *
  * Performance (Quest 3/3S):
  *   ≤ 35 draw calls — InstancedMesh for ribs, wall bands, ceiling tiles.
@@ -18,7 +18,7 @@
 
 import * as THREE from 'three';
 import { RING, TAU } from './ringConfig.js';
-import { createLCARSPanelTexture } from './textures.js';
+import { createLCARSPanelTexture, createCarpetTexture, createWallTexture } from './textures.js';
 
 const _obj = new THREE.Object3D();
 
@@ -38,11 +38,11 @@ export function buildCorridorRing() {
   const P    = RING.palette;
 
   const mats = {
-    carpetMain:   makeMat(P.carpetMain,   { roughness: 0.95, metalness: 0 }),
-    carpetPath:   makeMat(P.carpetStripe, { roughness: 0.95, metalness: 0 }),
+    carpetMain:   makeMat(P.carpetMain,   { roughness: 0.95, metalness: 0, map: createCarpetTexture(P.carpetMain) }),
+    carpetPath:   makeMat(P.carpetStripe, { roughness: 0.95, metalness: 0, map: createCarpetTexture(P.carpetStripe) }),
 
     // Both walls share same materials; side set per-mesh
-    wallPanel:    makeMat(P.wallPanel,  { roughness: 0.45, metalness: 0.1 }),
+    wallPanel:    makeMat(P.wallPanel,  { roughness: 0.45, metalness: 0.1, map: createWallTexture(P.wallPanel) }),
     wallBlack:    makeMat(P.wallBlack,  { roughness: 0.15, metalness: 0.6 }),
     baseboard: new THREE.MeshStandardMaterial({
       color: new THREE.Color(P.baseboard),
@@ -79,19 +79,19 @@ export function buildCorridorRing() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  FLOOR — blue-grey centre, pink/mauve sides
+//  FLOOR — tan/beige centre, darker tan/brown sides
 // ═══════════════════════════════════════════════════════════════
 
 function buildFloor(mats) {
   const g = new THREE.Group();
   const { innerR, outerR, radius, segments } = RING;
 
-  // Pink/mauve base — full corridor width  
+  // Darker tan/brown base — full corridor width  
   const baseGeo = new THREE.RingGeometry(innerR, outerR, segments);
   baseGeo.rotateX(-Math.PI / 2);
   g.add(new THREE.Mesh(baseGeo, mats.carpetMain));
 
-  // Blue-grey centre path: ~1.6 m wide
+  // Light tan/beige centre path: ~1.6 m wide
   const hw = 0.80;
   const pathGeo = new THREE.RingGeometry(radius - hw, radius + hw, segments);
   pathGeo.rotateX(-Math.PI / 2);
@@ -107,9 +107,9 @@ function buildFloor(mats) {
 //
 //  Bands (bottom → top):
 //    [0 → baseH]          bright white luminous baseboard
-//    [baseH → bandLow]    cool-grey lower horizontal panels
+//    [baseH → bandLow]    warm-beige lower horizontal panels
 //    [bandLow → bandHigh] deep-black recessed band (±0.04 m inset)
-//    [bandHigh → wH]      cool-grey upper horizontal panels
+//    [bandHigh → wH]      warm-beige upper horizontal panels
 //
 //  isInner = true  → innerR, FrontSide
 //  isInner = false → outerR, BackSide + mahogany multi-rail handrail
@@ -294,12 +294,25 @@ function buildRibs(mats) {
 
 // ═══════════════════════════════════════════════════════════════
 //  DOORS
+//  Keypads tagged with userData.doorPad / doorIndex for click interaction.
+//  Doors do NOT open by proximity — use the LCARS keypad to open/close.
 // ═══════════════════════════════════════════════════════════════
 
 function buildDoors(mats, doorsOut) {
   const g = new THREE.Group();
-  const { segCount, doorEvery, outerR, innerR, radius } = RING;
+  const { segCount, doorEvery, outerR, innerR, radius, wallHeight: wH } = RING;
   const count = Math.floor(segCount / doorEvery);
+
+  // Material for behind-door rooms
+  const roomMat = new THREE.MeshStandardMaterial({
+    color: 0x0A0A10, roughness: 0.9, metalness: 0.0,
+  });
+  const roomLightMat = new THREE.MeshStandardMaterial({
+    color: 0xFFEEDD,
+    emissive: new THREE.Color(0xFFEEDD),
+    emissiveIntensity: 1.0,
+    roughness: 0.8,
+  });
 
   for (let di = 0; di < count; di++) {
     const seg     = di * doorEvery;
@@ -310,67 +323,108 @@ function buildDoors(mats, doorsOut) {
 
     const dg = new THREE.Group();
 
-    // Frame (matches rib colour)
+    // Frame
     const frame = new THREE.Mesh(
       new THREE.BoxGeometry(1.70, 2.42, 0.22), mats.doorFrame,
     );
     frame.position.y = 1.21;
+    frame.renderOrder = 2;
     dg.add(frame);
 
-    // Left + Right sliding panels — sit behind the wall surface (negative Z)
+    // Left + Right sliding panels
     const panGeo = new THREE.BoxGeometry(0.74, 2.20, 0.08);
     const lp = new THREE.Mesh(panGeo, mats.doorPanel);
     lp.position.set(-0.40, 1.10, -0.04);
+    lp.renderOrder = 3;
     dg.add(lp);
-    const rp = new THREE.Mesh(panGeo.clone(), mats.doorPanel);
+    const rp = lp.clone();
     rp.position.set( 0.40, 1.10, -0.04);
+    rp.renderOrder = 3;
     dg.add(rp);
 
-    // Label canvas above door
+    // ── Behind-door room (visible through opening when panels slide) ──────
+    const roomDepth = 2.0;
+    // Back wall
+    const roomBack = new THREE.Mesh(new THREE.PlaneGeometry(1.60, 2.20), roomMat.clone());
+    roomBack.position.set(0, 1.10, -(0.11 + roomDepth));
+    roomBack.renderOrder = 2;
+    dg.add(roomBack);
+    // Side walls
+    [[-0.80, roomDepth / 2], [0.80, roomDepth / 2]].forEach(([ox, oz], si) => {
+      const sw = new THREE.Mesh(new THREE.PlaneGeometry(roomDepth, 2.20), roomMat.clone());
+      sw.position.set(ox, 1.10, -(0.11 + oz));
+      sw.rotation.y = si === 0 ? Math.PI / 2 : -Math.PI / 2;
+      sw.renderOrder = 2;
+      dg.add(sw);
+    });
+    // Floor
+    const roomFloor = new THREE.Mesh(new THREE.PlaneGeometry(1.60, roomDepth), roomMat.clone());
+    roomFloor.rotation.x = -Math.PI / 2;
+    roomFloor.position.set(0, 0.01, -(0.11 + roomDepth / 2));
+    roomFloor.renderOrder = 2;
+    dg.add(roomFloor);
+    // Ceiling light strip
+    const roomLight = new THREE.Mesh(new THREE.PlaneGeometry(1.20, 0.20), roomLightMat.clone());
+    roomLight.rotation.x = Math.PI / 2;
+    roomLight.position.set(0, wH - 0.05, -(0.11 + roomDepth / 2));
+    roomLight.renderOrder = 2;
+    dg.add(roomLight);
+
+    // ── Label above door ──────────────────────────────────────────────────
     const label = RING.doorLabels[di % RING.doorLabels.length];
     const cv    = document.createElement('canvas');
     cv.width = 256; cv.height = 48;
     const ctx = cv.getContext('2d');
-    ctx.fillStyle = '#111'; ctx.fillRect(0, 0, 256, 48);
+    ctx.fillStyle = '#040412';
+    ctx.fillRect(0, 0, 256, 48);
     ctx.fillStyle = '#FF9900';
     ctx.font = 'bold 20px Arial Narrow, Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(label, 128, 34);
+    ctx.fillText(label, 128, 32);
     const lm = new THREE.Mesh(
       new THREE.PlaneGeometry(1.1, 0.20),
       new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv) }),
     );
-    lm.position.set(0, 2.58, 0.01);
+    lm.position.set(0, 2.58, 0.05);
+    lm.renderOrder = 4;
     dg.add(lm);
 
-    // LCARS keypad beside door (both sides, as in TNG)
-    // Flush against the wall surface (z ≈ 0.01)
-    [-1, 1].forEach(side => {
+    // ── LCARS keypads (both sides, tagged for interaction) ────────────────
+    const padMeshes = [];
+    [-1, 1].forEach((side, padIdx) => {
       const padCv    = document.createElement('canvas');
       padCv.width    = 64;
       padCv.height   = 128;
       const pctx     = padCv.getContext('2d');
-      pctx.fillStyle = '#000000';
+      pctx.fillStyle = '#040412';
       pctx.fillRect(0, 0, 64, 128);
-      ['#FF9900', '#3399FF', '#CC99FF', '#CC6600'].forEach((c, i) => {
+      [['#FF9900', '▶ OPEN'], ['#3366CC', 'DECK'], ['#CC77CC', 'LOCK'], ['#CC6600', 'COMM']].forEach(([c, lbl], i) => {
         pctx.fillStyle = c;
         pctx.beginPath();
         pctx.roundRect(4, 4 + i * 30, 56, 24, 6);
         pctx.fill();
+        pctx.fillStyle = '#040412';
+        pctx.font = 'bold 9px Arial Narrow, Arial';
+        pctx.textAlign = 'center';
+        pctx.fillText(lbl, 32, 4 + i * 30 + 16);
       });
-      const padTex  = new THREE.CanvasTexture(padCv);
       const padMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.14, 0.28),
-        new THREE.MeshBasicMaterial({ map: padTex }),
+        new THREE.PlaneGeometry(0.18, 0.36),
+        new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(padCv) }),
       );
-      padMesh.position.set(side * 1.05, 1.2, 0.01);
+      padMesh.position.set(side * 1.05, 1.35, 0.05);
+      padMesh.renderOrder = 4;
+      padMesh.userData.doorPad   = true;
+      padMesh.userData.doorIndex = di;
+      padMesh.userData.scene     = 'corridor';
       dg.add(padMesh);
+      padMeshes.push(padMesh);
     });
 
     dg.position.set(Math.sin(angle) * wallR, 0, Math.cos(angle) * wallR);
     dg.rotation.set(0, faceR, 0);
     g.add(dg);
-    doorsOut.push({ leftPanel: lp, rightPanel: rp, theta: angle, wallR, open: false, t: 0 });
+    doorsOut.push({ leftPanel: lp, rightPanel: rp, padMeshes, theta: angle, wallR, open: false, t: 0 });
   }
   return g;
 }
@@ -384,24 +438,20 @@ function buildDoors(mats, doorsOut) {
 // ═══════════════════════════════════════════════════════════════
 
 function buildLighting(root, resources) {
-  // The corridor ring is 10 m radius — physically-correct inverse-square
-  // decay (Three.js r155+ default) drops PointLight intensity to near zero
-  // at that range.  Strategy:
-  //   1. HemisphereLight carries the base ambient colour (no distance falloff).
-  //   2. PointLights with decay=0 (constant; distance = hard cutoff) add the
-  //      warm baseboard glow tint and cool ceiling tint without washing out.
-
-  const hemi = new THREE.HemisphereLight(0xEEF2FF, 0x2A2830, 1.10);
+  // TNG corridor: bright, even, slightly cool-white from ceiling panels.
+  // Warm baseboard fill adds the characteristic foot-level amber glow.
+  // A HemisphereLight carries the ambient without a distance falloff.
+  const hemi = new THREE.HemisphereLight(0xEEF0F8, 0x2A281C, 1.30);
   root.add(hemi);
 
-  // Warm baseboard fill — flat falloff, reaches both walls
-  const baseLight = new THREE.PointLight(0xF8F4E8, 1.2, 25, 0);   // decay=0
-  baseLight.position.set(0, 0.35, 0);
+  // Warm baseboard fill — reaches both walls at ring radius
+  const baseLight = new THREE.PointLight(0xFFF2DC, 1.4, 28, 0);   // decay=0
+  baseLight.position.set(0, 0.30, 0);
   root.add(baseLight);
   resources.accentLights.push(baseLight);
 
-  // Cool ceiling fill — flat falloff
-  const ceilLight = new THREE.PointLight(0xEEF2FF, 1.0, 25, 0);   // decay=0
+  // Cool ceiling fill — matches emissive ceiling tiles
+  const ceilLight = new THREE.PointLight(0xF0F4FF, 1.1, 28, 0);   // decay=0
   ceilLight.position.set(0, RING.wallHeight * 0.95, 0);
   root.add(ceilLight);
   resources.accentLights.push(ceilLight);

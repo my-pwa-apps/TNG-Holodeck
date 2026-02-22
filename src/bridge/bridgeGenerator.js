@@ -14,7 +14,7 @@ import * as THREE from 'three';
 import { BRIDGE, DEG, ringXZ } from './bridgeConfig.js';
 import {
   createLCARSCanvas, drawLCARS, createStaticLCARSTexture,
-  createCarpetTexture, createStarfieldCanvas,
+  createCarpetTexture, createWallTexture, createStarfieldCanvas,
 } from './lcarsTexture.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -41,16 +41,16 @@ export function buildBridge() {
 
   // ── Shared materials (reused across meshes → draw-call batching) ──────
   const mats = {
-    carpet:     makeMat(P.carpet,     { roughness: 0.92, metalness: 0.0 }),           // deep burgundy outer ring
-    carpetPit:  makeMat(P.carpetPit,  { roughness: 0.88, metalness: 0.0 }),           // light grey pit floor
-    wall:       makeMat(P.wall,       { roughness: 0.78, side: THREE.BackSide, metalness: 0.0 }),
-    wallPanel:  makeMat(P.wallPanel,  { roughness: 0.6, metalness: 0.0 }),
+    carpet:     makeMat(P.carpet,     { roughness: 0.92, metalness: 0.0, map: createCarpetTexture(P.carpet) }),           // deep burgundy outer ring
+    carpetPit:  makeMat(P.carpetPit,  { roughness: 0.88, metalness: 0.0, map: createCarpetTexture(P.carpetPit) }),           // light grey pit floor
+    wall:       makeMat(P.wall,       { roughness: 0.78, side: THREE.BackSide, metalness: 0.0, map: createWallTexture(P.wall) }),
+    wallPanel:  makeMat(P.wallPanel,  { roughness: 0.6, metalness: 0.0, map: createWallTexture(P.wallPanel) }),
     wallBand:   makeMat(P.wallBand,   { roughness: 0.5, metalness: 0.0 }),
     ceiling:    makeMat(P.ceiling,    { roughness: 0.7, side: THREE.BackSide, metalness: 0.0 }),
     console:    makeMat(P.console,    { roughness: 0.80, metalness: 0.0 }),
     consolePanel: makeMat(P.consolePanel, { roughness: 0.60, metalness: 0.0 }),
     wood:       makeMat(P.wood,       { roughness: 0.35, metalness: 0.0 }),
-    seat:       makeMat(P.seat,       { roughness: 0.72, metalness: 0.0 }),           // cream/ivory (not red)
+    seat:       makeMat(P.seat,       { roughness: 0.72, metalness: 0.0 }),           // maroon/reddish-brown
     chairFrame: makeMat(P.frame,      { roughness: 0.4, metalness: 0.5 }),
     metal:      makeMat(P.metal,      { roughness: 0.25, metalness: 0.7 }),
     doorFrame:  makeMat(P.doorFrame,  { roughness: 0.4, metalness: 0.5 }),
@@ -80,6 +80,7 @@ export function buildBridge() {
   };
 
   // ── Build all sections ────────────────────────────────────────────────
+  resources.doors = [];   // { leftPanel, rightPanel, open, t, padMeshes[] }
   root.add(buildFloor(mats));
   root.add(buildWalls(mats));
   root.add(buildCeiling(mats, resources));
@@ -89,7 +90,7 @@ export function buildBridge() {
   root.add(buildRearConsoles(mats, animLcarsMat, resources));
   root.add(buildAftStations(mats, resources));
   root.add(buildViewscreen(mats, starfield));
-  root.add(buildDoors(mats));
+  root.add(buildDoors(mats, resources));
   buildLighting(root, resources);
 
   return { root, resources };
@@ -419,8 +420,9 @@ function buildChairs(mats) {
 
     // Back
     chair.add((() => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(w, bh, 0.10), mats.seat);
-      m.position.set(0, 0.42 + bh / 2, 0.26);
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, bh, 0.12), mats.seat);
+      m.position.set(0, 0.42 + bh / 2, 0.28);
+      m.rotation.x = -0.15; // tilt back slightly
       return m;
     })());
 
@@ -465,7 +467,7 @@ function buildConnOps(mats, animLcarsMat, resources) {
   const deskGeo = new THREE.ExtrudeGeometry(deskShape, {
     depth: 0.65, bevelEnabled: true, bevelSize: 0.04, bevelThickness: 0.04,
   });
-  const desk = new THREE.Mesh(deskGeo, mats.console);
+  const desk = new THREE.Mesh(deskGeo, mats.wood);
   desk.rotation.x = -Math.PI / 2;
   desk.position.set(0, pitY + 0.08, -1.5);
   g.add(desk);
@@ -653,85 +655,177 @@ function buildViewscreen(mats, starfield) {
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  DOORS  (turbolifts + ready room + observation lounge)
+//  Returns animated door refs into resources.doors[].
+//  Keypads tagged with userData.doorPad / userData.doorIndex for click interaction.
 // ═══════════════════════════════════════════════════════════════════════════
 
-function buildDoors(mats) {
+function buildDoors(mats, resources) {
   const g     = new THREE.Group();
   const doors = BRIDGE.doors;
-  const R     = BRIDGE.room.radius - 0.10;
+  // Place doors flush with the wall interior face.
+  // R_wall = 7.0 m. We position the door group at R_wall - 0.06 so the frame
+  // sits clearly inside the bridge (renderOrder 2 overcomes any z-fight).
+  const R = BRIDGE.room.radius - 0.06;
 
-  doors.forEach(door => {
+  // Materials for the door environment boxes (turbolift shafts / small rooms)
+  const shaftMat = makeMat(0x0A0A0F, { roughness: 0.9, metalness: 0.0 });
+  const shaftGridMat = new THREE.MeshStandardMaterial({
+    color: 0x1A1A2E,
+    emissive: new THREE.Color(0x334466),
+    emissiveIntensity: 0.6,
+    roughness: 0.9,
+  });
+
+  doors.forEach((door, doorIndex) => {
     const dg = new THREE.Group();
     const [x, z] = ringXZ(door.deg, R);
 
-    // Frame — starts at floor, full height
+    // Frame — wall-facing face flush with bridge interior.
+    // Depth 0.24 m: front face at door group position, back face into the wall.
     const frame = new THREE.Mesh(
-      new THREE.BoxGeometry(1.9, 2.7, 0.30),
+      new THREE.BoxGeometry(1.92, 2.72, 0.24),
       mats.doorFrame,
     );
-    frame.position.y = 1.35;
+    frame.position.y = 1.36;
+    frame.renderOrder = 2;
     dg.add(frame);
 
-    // Left panel (slides behind wall, negative Z = wall side)
-    const panelGeo = new THREE.BoxGeometry(0.82, 2.5, 0.07);
-    const left = new THREE.Mesh(panelGeo, mats.doorPanel);
-    left.position.set(-0.44, 1.30, 0.10);
-    dg.add(left);
+    // ── Sliding door panels ──────────────────────────────────────────────
+    // In local space, +Z faces the bridge interior (because dg.lookAt(0,0,0)
+    // makes the Object3D's +Z point toward the origin).
+    // Panels sit at z = +0.02 (just inside the frame interior face).
+    const panelGeo = new THREE.BoxGeometry(0.84, 2.50, 0.06);
+    const left     = new THREE.Mesh(panelGeo, mats.doorPanel);
+    left.position.set(-0.44, 1.30, 0.09);
+    left.renderOrder = 3;
 
-    // Right panel
-    const right = new THREE.Mesh(panelGeo.clone(), mats.doorPanel);
-    right.position.set(0.44, 1.30, 0.10);
-    dg.add(right);
+    const right = left.clone();
+    right.position.set(0.44, 1.30, 0.09);
+    right.renderOrder = 3;
 
-    // Label above door
-    const labelCanvas    = document.createElement('canvas');
-    labelCanvas.width    = 256;
-    labelCanvas.height   = 48;
-    const lctx           = labelCanvas.getContext('2d');
-    lctx.fillStyle       = '#1a1a1a';
-    lctx.fillRect(0, 0, 256, 48);
-    lctx.fillStyle       = '#FF9900';
-    lctx.font            = 'bold 22px Arial Narrow, Arial';
-    lctx.textAlign       = 'center';
-    lctx.fillText(door.label, 128, 34);
-    const labelTex       = new THREE.CanvasTexture(labelCanvas);
-    const labelMesh      = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.3, 0.22),
-      new THREE.MeshBasicMaterial({ map: labelTex }),
+    dg.add(left, right);
+
+    // ── Behind-door environment (turbolift shaft / room alcove) ──────────
+    // A dark recessed box placed behind (outward from) the door frame.
+    // Visible through the gap when panels slide open.
+    const shaftDepth = 2.2;
+    const shaft = new THREE.Group();
+
+    // Back wall of alcove
+    const backWall = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.84, 2.52),
+      shaftMat.clone(),
     );
-    labelMesh.position.set(0, 2.85, 0.16);
+    backWall.position.set(0, 1.26, -(shaftDepth));
+    backWall.renderOrder = 2;
+    shaft.add(backWall);
+
+    // Side walls of alcove
+    ['left', 'right'].forEach((side, si) => {
+      const sw = new THREE.Mesh(
+        new THREE.PlaneGeometry(shaftDepth, 2.52),
+        shaftMat.clone(),
+      );
+      sw.position.set((si === 0 ? 0.92 : -0.92), 1.26, -shaftDepth / 2);
+      sw.rotation.y = si === 0 ? -Math.PI / 2 : Math.PI / 2;
+      sw.renderOrder = 2;
+      shaft.add(sw);
+    });
+
+    // Floor of alcove
+    const floorAlc = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.84, shaftDepth),
+      shaftMat.clone(),
+    );
+    floorAlc.rotation.x = -Math.PI / 2;
+    floorAlc.position.set(0, 0.01, -shaftDepth / 2);
+    floorAlc.renderOrder = 2;
+    shaft.add(floorAlc);
+
+    // Ceiling strip lights inside alcove (faint warm glow)
+    const ceilStrip = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.6, 0.25),
+      new THREE.MeshStandardMaterial({
+        color: 0xFFEEDD,
+        emissive: new THREE.Color(0xFFEEDD),
+        emissiveIntensity: 1.2,
+      }),
+    );
+    ceilStrip.rotation.x = Math.PI / 2;
+    ceilStrip.position.set(0, 2.50, -shaftDepth * 0.5);
+    ceilStrip.renderOrder = 2;
+    shaft.add(ceilStrip);
+
+    // Shaft environment sits behind dg's +Z direction (which points inward).
+    // We need to push the shaft outward = negative local Z.
+    dg.add(shaft);
+
+    // ── LCARS label above door ───────────────────────────────────────────
+    const labelCanvas  = document.createElement('canvas');
+    labelCanvas.width  = 256;
+    labelCanvas.height = 48;
+    const lctx = labelCanvas.getContext('2d');
+    lctx.fillStyle = '#040412';
+    lctx.fillRect(0, 0, 256, 48);
+    lctx.fillStyle = '#FF9900';
+    lctx.font = 'bold 20px Arial Narrow, Arial';
+    lctx.textAlign = 'center';
+    lctx.fillText(door.label, 128, 32);
+    const labelMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.3, 0.22),
+      new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(labelCanvas) }),
+    );
+    labelMesh.position.set(0, 2.88, 0.14);
+    labelMesh.renderOrder = 4;
     dg.add(labelMesh);
 
-    // LCARS keypads beside door (both sides, as in TNG)
-    [-1, 1].forEach(side => {
-      const padCanvas    = document.createElement('canvas');
-      padCanvas.width    = 64;
-      padCanvas.height   = 128;
-      const pctx         = padCanvas.getContext('2d');
-      pctx.fillStyle     = '#000000';
+    // ── LCARS keypads (both sides — used to open/close door) ─────────────
+    const padMeshes = [];
+    [-1, 1].forEach((side, padIdx) => {
+      const padCanvas   = document.createElement('canvas');
+      padCanvas.width   = 64;
+      padCanvas.height  = 128;
+      const pctx        = padCanvas.getContext('2d');
+      pctx.fillStyle    = '#040412';
       pctx.fillRect(0, 0, 64, 128);
-      ['#FF9900', '#3399FF', '#CC99FF', '#CC6600'].forEach((c, i) => {
+      // TNG-style LCARS buttons
+      [['#FF9900', '▶ OPEN'], ['#3366CC', 'DECK'], ['#CC77CC', 'LOCK'], ['#CC6600', 'COMM']].forEach(([c, lbl], i) => {
         pctx.fillStyle = c;
         pctx.beginPath();
         pctx.roundRect(4, 4 + i * 30, 56, 24, 6);
         pctx.fill();
+        pctx.fillStyle = '#040412';
+        pctx.font = 'bold 9px Arial Narrow, Arial';
+        pctx.textAlign = 'center';
+        pctx.fillText(lbl, 32, 4 + i * 30 + 16);
       });
-      const padTex  = new THREE.CanvasTexture(padCanvas);
       const padMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.16, 0.32),
-        new THREE.MeshBasicMaterial({ map: padTex }),
+        new THREE.PlaneGeometry(0.20, 0.40),
+        new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(padCanvas) }),
       );
-      padMesh.position.set(side * 1.15, 1.2, 0.16);
+      padMesh.position.set(side * 1.16, 1.35, 0.14);
+      padMesh.renderOrder = 4;
+      // Tag for interaction system
+      padMesh.userData.doorPad   = true;
+      padMesh.userData.doorIndex = doorIndex;
+      padMesh.userData.scene     = 'bridge';
       dg.add(padMesh);
+      padMeshes.push(padMesh);
     });
 
-    // Position on wall at floor level
+    // Position and orient on the bridge wall
     dg.position.set(x, 0, z);
-    // Face inward — lookAt makes +Z point toward center for Object3D,
-    // so panels/labels/pads at positive Z face the bridge interior.
     dg.lookAt(0, 0, 0);
-
     g.add(dg);
+
+    // Register for animation
+    resources.doors.push({
+      leftPanel:  left,
+      rightPanel: right,
+      padMeshes,
+      open: false,
+      t:    0,
+    });
   });
 
   return g;
@@ -742,29 +836,29 @@ function buildDoors(mats) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function buildLighting(root, resources) {
-  // Hemisphere — the TNG bridge is very bright and warm:
-  //   bright warm-white sky, very dim warm-brown ground
-  const hemi = new THREE.HemisphereLight(0xFFF8F0, 0x2A1E14, 1.5);
+  // TNG bridge is warm, bright, even — like a film set with soft diffusers.
+  // Hemisphere base: warm-ivory sky (ceiling panels), cool-brown ground bounce.
+  const hemi = new THREE.HemisphereLight(0xFFFAEE, 0x2A1814, 1.8);
   root.add(hemi);
 
-  // Central dome point — primary key light (warm white)
-  const dome = new THREE.PointLight(0xFFF4E8, 0.8, 26);
+  // Central dome point — warm-white key light
+  const dome = new THREE.PointLight(0xFFF6EC, 1.0, 30);
   dome.decay = 0;
   dome.position.set(0, BRIDGE.room.domeApex - 0.4, 0);
   root.add(dome);
   resources.accentLights.push(dome);
 
-  // Forward fill toward viewscreen (slight cool-blue from screen)
-  const fwd = new THREE.PointLight(0xBBCCDD, 0.3, 16);
+  // Forward fill toward viewscreen (slight cool-blue spill from screen)
+  const fwd = new THREE.PointLight(0xAABBCC, 0.35, 18);
   fwd.decay = 0;
-  fwd.position.set(0, 3.2, -4.5);
+  fwd.position.set(0, 3.0, -4.0);
   root.add(fwd);
   resources.accentLights.push(fwd);
 
-  // Aft fill
-  const aft = new THREE.PointLight(0xFFE8C8, 0.3, 14);
+  // Aft fill (warm console glow)
+  const aft = new THREE.PointLight(0xFFE8C0, 0.35, 16);
   aft.decay = 0;
-  aft.position.set(0, 2.8, 4.5);
+  aft.position.set(0, 2.6, 4.0);
   root.add(aft);
   resources.accentLights.push(aft);
 }

@@ -79,7 +79,7 @@ export function createWallTexture(color = 0xCDBFA0, size = 256) {
 
 // ── LCARS panel (static) ─────────────────────────────────────────────────
 
-const LC_COLS = ['#FF9900', '#CC6600', '#6688CC', '#CC99CC', '#55AAAA'];
+const LC_COLS = ['#FF9900', '#CC6600', '#3366CC', '#CC77CC', '#3399AA'];
 
 function rrect(ctx, x, y, w, h, r, col) {
   ctx.fillStyle = col;
@@ -95,34 +95,38 @@ export function createLCARSPanelTexture(label = 'DECK 7', size = 256) {
   canvas.height = h;
   const ctx = canvas.getContext('2d');
 
-  ctx.fillStyle = '#1A1A2E';
+  ctx.fillStyle = '#040412';
   ctx.fillRect(0, 0, size, h);
 
-  // Header bar
-  rrect(ctx, 0, 0, size, h * 0.15, 6, LC_COLS[0]);
-  ctx.fillStyle = '#1A1A2E';
+  // Header bar — orange pill + secondary blue block
+  rrect(ctx, 0, 0, size * 0.60, h * 0.16, [0, 0, 10, 10], LC_COLS[0]);
+  rrect(ctx, size * 0.64, 0, size * 0.36, h * 0.16, [0, 0, 0, 10], LC_COLS[2]);
+  ctx.fillStyle = '#040412';
   ctx.font = `bold ${Math.round(h * 0.10)}px Arial Narrow, Arial`;
   ctx.textAlign = 'center';
-  ctx.fillText(label, size / 2, h * 0.12);
+  ctx.fillText(label, size * 0.30, h * 0.12);
   ctx.textAlign = 'left';
 
-  // Left bumper column
-  for (let i = 0; i < 4; i++) {
-    rrect(ctx, 0, h * (0.20 + i * 0.20), size * 0.08, h * 0.16, 4,
+  // Left bumper column (stacked tall pills)
+  for (let i = 0; i < 3; i++) {
+    rrect(ctx, 0, h * (0.22 + i * 0.24), size * 0.075, h * 0.18, 5,
           LC_COLS[(i + 1) % LC_COLS.length]);
   }
 
   // Content blocks + progress bars
-  for (let row = 0; row < 4; row++) {
-    const y = h * (0.20 + row * 0.20);
-    rrect(ctx, size * 0.12, y, size * 0.25, h * 0.14, 3,
+  for (let row = 0; row < 3; row++) {
+    const y = h * (0.22 + row * 0.24);
+    rrect(ctx, size * 0.10, y, size * 0.22, h * 0.16, 3,
           LC_COLS[(row + 2) % LC_COLS.length]);
-    ctx.fillStyle = '#111122';
-    ctx.fillRect(size * 0.40, y + h * 0.03, size * 0.56, h * 0.08);
-    const fill = 0.4 + 0.5 * Math.sin(row * 2.3);
+    ctx.fillStyle = '#07071A';
+    ctx.fillRect(size * 0.36, y + h * 0.04, size * 0.60, h * 0.08);
+    const fill = 0.35 + 0.55 * Math.abs(Math.sin(row * 2.3));
     ctx.fillStyle = LC_COLS[(row + 3) % LC_COLS.length];
-    ctx.fillRect(size * 0.40, y + h * 0.03, size * 0.56 * fill, h * 0.08);
+    ctx.fillRect(size * 0.36, y + h * 0.04, size * 0.60 * fill, h * 0.08);
   }
+
+  // Bottom footer bar
+  rrect(ctx, 0, h * 0.90, size, h * 0.10, [5, 5, 0, 0], LC_COLS[1]);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;

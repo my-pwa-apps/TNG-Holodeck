@@ -87,6 +87,19 @@ export class BridgeScene {
     const res = this._res;
     if (!res) return;
 
+    // ── Door slide animation ──────────────────────────────────────────
+    const doors = res.doors;
+    if (doors?.length) {
+      for (const door of doors) {
+        const target = door.open ? 1 : 0;
+        door.t += (target - door.t) * 8 * dt;
+        door.t  = Math.max(0, Math.min(1, door.t));
+        const slide = 0.80 * door.t;
+        door.leftPanel.position.x  = -0.44 - slide;
+        door.rightPanel.position.x =  0.44 + slide;
+      }
+    }
+
     // ── Animated LCARS (throttled ~15 fps) ───────────────────────────
     this._lcarsAccum += dt;
     if (this._lcarsAccum >= 0.066) {
@@ -131,6 +144,15 @@ export class BridgeScene {
         res.ceilLightMat.emissiveIntensity = on ? 3.5 : 0.3;
       }
     }
+  }
+
+  // ── Door keypad interaction ───────────────────────────────────────────
+
+  toggleDoor(index) {
+    const door = this._res?.doors?.[index];
+    if (!door) return;
+    door.open = !door.open;
+    this._audio.play?.('door_slide');
   }
 
   // ── Red Alert toggle ──────────────────────────────────────────────────
