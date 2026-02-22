@@ -1,5 +1,4 @@
 // Materialization particle system - Vertex Shader
-attribute vec3  aTargetPosition;
 
 uniform float   uProgress;  // 0 → 1 (materialize) or 1 → 0 (dematerialize)
 uniform float   uTime;
@@ -11,7 +10,7 @@ varying vec3    vColor;
 varying float   vAlpha;
 
 void main() {
-  vec3 pos = aTargetPosition;
+  vec3 pos = position;
   
   float height = uMaxY - uMinY;
   float scannerY = uMinY + uProgress * height;

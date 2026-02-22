@@ -45,11 +45,9 @@ export class MaterializationSystem {
   _build() {
     const PARTICLE_COUNT = this._particleCount;
     const positions  = new Float32Array(PARTICLE_COUNT * 3);
-    const targets    = new Float32Array(PARTICLE_COUNT * 3);
 
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position',       new THREE.BufferAttribute(positions, 3));
-    geo.setAttribute('aTargetPosition',new THREE.BufferAttribute(targets,   3));
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
     this._material = new THREE.ShaderMaterial({
       vertexShader:   matVert,
@@ -140,7 +138,7 @@ export class MaterializationSystem {
     this._material.uniforms.uMaxY.value = this._maxY;
 
     const PARTICLE_COUNT = this._particleCount;
-    const targets = this._particles.geometry.attributes.aTargetPosition;
+    const positions = this._particles.geometry.attributes.position;
     
     // Arrange particles in a 3D grid
     const volume = Math.max(0.1, size.x * size.y * size.z);
@@ -165,9 +163,9 @@ export class MaterializationSystem {
       for (let y = 0; y < ny && pIdx < PARTICLE_COUNT; y++) {
         for (let z = 0; z < nz && pIdx < PARTICLE_COUNT; z++) {
           const i3 = pIdx * 3;
-          targets.array[i3]     = startX + x * sx;
-          targets.array[i3 + 1] = startY + y * sy;
-          targets.array[i3 + 2] = startZ + z * sz;
+          positions.array[i3]     = startX + x * sx;
+          positions.array[i3 + 1] = startY + y * sy;
+          positions.array[i3 + 2] = startZ + z * sz;
           pIdx++;
         }
       }
@@ -176,12 +174,12 @@ export class MaterializationSystem {
     // Fill remainder randomly within the box
     for (; pIdx < PARTICLE_COUNT; pIdx++) {
       const i3 = pIdx * 3;
-      targets.array[i3]     = center.x + (Math.random() - 0.5) * size.x;
-      targets.array[i3 + 1] = center.y + (Math.random() - 0.5) * size.y;
-      targets.array[i3 + 2] = center.z + (Math.random() - 0.5) * size.z;
+      positions.array[i3]     = center.x + (Math.random() - 0.5) * size.x;
+      positions.array[i3 + 1] = center.y + (Math.random() - 0.5) * size.y;
+      positions.array[i3 + 2] = center.z + (Math.random() - 0.5) * size.z;
     }
     
-    targets.needsUpdate = true;
+    positions.needsUpdate = true;
   }
 
   _applyClippingPlane() {
@@ -205,14 +203,16 @@ export class MaterializationSystem {
   _removeClippingPlane() {
     this._objects.forEach(obj => {
       obj.traverse(child => {
-        if (child.material && child.material.clippingPlanes) {
+        if (child.material) {
           const mats = Array.isArray(child.material) ? child.material : [child.material];
           mats.forEach(mat => {
-            const idx = mat.clippingPlanes.indexOf(this._clipPlane);
-            if (idx !== -1) {
-              mat.clippingPlanes.splice(idx, 1);
-              if (mat.isShaderMaterial && mat.clippingPlanes.length === 0) mat.clipping = false;
-              mat.needsUpdate = true;
+            if (mat.clippingPlanes) {
+              const idx = mat.clippingPlanes.indexOf(this._clipPlane);
+              if (idx !== -1) {
+                mat.clippingPlanes.splice(idx, 1);
+                if (mat.isShaderMaterial && mat.clippingPlanes.length === 0) mat.clipping = false;
+                mat.needsUpdate = true;
+              }
             }
           });
         }
@@ -242,14 +242,8 @@ export class MaterializationSystem {
     this._updateClippingPlane();
 
     // Done
-    if (this._direction > 0 && this._progress >= 1) {
-      this._active = false;
-      this._particles.visible = false;
-      this._removeClippingPlane();
-      const onComplete = this._onComplete;
-      this._onComplete = null;
-      if (onComplete) onComplete();
-    } else if (this._direction < 0 && this._progress <= 0) {
+    if ((this._direction > 0 && this._progress >= 1) || 
+        (this._direction < 0 && this._progress <= 0)) {
       this._active = false;
       this._particles.visible = false;
       this._removeClippingPlane();
