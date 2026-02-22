@@ -41,21 +41,22 @@ export function buildBridge() {
 
   // ── Shared materials (reused across meshes → draw-call batching) ──────
   const mats = {
-    carpet:     makeMat(P.carpet,     { roughness: 0.92 }),           // deep burgundy outer ring
-    carpetPit:  makeMat(P.carpetPit,  { roughness: 0.88 }),           // light grey pit floor
-    wall:       makeMat(P.wall,       { roughness: 0.78, side: THREE.BackSide }),
-    wallPanel:  makeMat(P.wallPanel,  { roughness: 0.6  }),
-    wallBand:   makeMat(P.wallBand,   { roughness: 0.5, metalness: 0.15 }),
-    ceiling:    makeMat(P.ceiling,    { roughness: 0.7, side: THREE.BackSide }),
-    console:    makeMat(P.console,    { roughness: 0.80 }),
-    wood:       makeMat(P.wood,       { roughness: 0.35 }),
-    seat:       makeMat(P.seat,       { roughness: 0.72 }),           // cream/ivory (not red)
+    carpet:     makeMat(P.carpet,     { roughness: 0.92, metalness: 0.0 }),           // deep burgundy outer ring
+    carpetPit:  makeMat(P.carpetPit,  { roughness: 0.88, metalness: 0.0 }),           // light grey pit floor
+    wall:       makeMat(P.wall,       { roughness: 0.78, side: THREE.BackSide, metalness: 0.0 }),
+    wallPanel:  makeMat(P.wallPanel,  { roughness: 0.6, metalness: 0.0 }),
+    wallBand:   makeMat(P.wallBand,   { roughness: 0.5, metalness: 0.0 }),
+    ceiling:    makeMat(P.ceiling,    { roughness: 0.7, side: THREE.BackSide, metalness: 0.0 }),
+    console:    makeMat(P.console,    { roughness: 0.80, metalness: 0.0 }),
+    consolePanel: makeMat(P.consolePanel, { roughness: 0.60, metalness: 0.0 }),
+    wood:       makeMat(P.wood,       { roughness: 0.35, metalness: 0.0 }),
+    seat:       makeMat(P.seat,       { roughness: 0.72, metalness: 0.0 }),           // cream/ivory (not red)
     chairFrame: makeMat(P.frame,      { roughness: 0.4, metalness: 0.5 }),
     metal:      makeMat(P.metal,      { roughness: 0.25, metalness: 0.7 }),
     doorFrame:  makeMat(P.doorFrame,  { roughness: 0.4, metalness: 0.5 }),
-    doorPanel:  makeMat(P.doorPanel,  { roughness: 0.55 }),           // charcoal grey
+    doorPanel:  makeMat(P.doorPanel,  { roughness: 0.55, metalness: 0.0 }),           // charcoal grey
     vsFrame:    makeMat(P.vsFrame,    { roughness: 0.2, metalness: 0.6 }),
-    vsSurround: makeMat(P.vsSurround, { roughness: 0.6  }),
+    vsSurround: makeMat(P.vsSurround, { roughness: 0.6, metalness: 0.0 }),
   };
 
   // LCARS textures
@@ -320,6 +321,23 @@ function buildHorseshoe(mats, lcarsMat) {
   bodies.instanceMatrix.needsUpdate = true;
   g.add(bodies);
 
+  // ── Dark screen surrounds (InstancedMesh) ──────────────────────────────
+  const surroundGeo = new THREE.PlaneGeometry(segW * 0.95, segD * 0.9);
+  const surrounds   = new THREE.InstancedMesh(surroundGeo, mats.consolePanel, N);
+
+  for (let i = 0; i < N; i++) {
+    const deg = 290 - ((i + 0.5) / N) * hs.arcDeg;
+    const [x, z] = ringXZ(deg, midR);
+    _obj.position.set(x, hs.height + 0.005, z);
+    _obj.rotation.set(0, 0, 0);
+    _obj.lookAt(0, hs.height + 0.005, 0);
+    _obj.rotateX(-Math.PI / 2 - hs.screenTilt);
+    _obj.updateMatrix();
+    surrounds.setMatrixAt(i, _obj.matrix);
+  }
+  surrounds.instanceMatrix.needsUpdate = true;
+  g.add(surrounds);
+
   // ── LCARS screen planes on top (InstancedMesh) ─────────────────────────
   const screenGeo = new THREE.PlaneGeometry(segW * 0.85, segD * 0.8);
   const screens   = new THREE.InstancedMesh(screenGeo, lcarsMat, N);
@@ -459,7 +477,7 @@ function buildConnOps(mats, animLcarsMat, resources) {
     s.absarc(0, 0, 1.95, Math.PI * 0.17, -Math.PI * 0.17, true);
     return s;
   })(), { depth: 0.03, bevelEnabled: false });
-  const surf = new THREE.Mesh(surfGeo, mats.console);
+  const surf = new THREE.Mesh(surfGeo, mats.consolePanel);
   surf.rotation.x = -Math.PI / 2;
   surf.position.set(0, pitY + 0.74, -1.5);
   g.add(surf);
@@ -498,6 +516,12 @@ function buildRearConsoles(mats, animLcarsMat, resources) {
     const trim = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.05, 0.55), mats.wood);
     trim.position.y = 1.02;
     cg.add(trim);
+
+    // Dark screen surround
+    const surround = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.65), mats.consolePanel);
+    surround.position.set(0, 1.45, -0.105);
+    surround.rotation.x = -0.2;
+    cg.add(surround);
 
     // LCARS screen
     const screen = new THREE.Mesh(
@@ -552,6 +576,21 @@ function buildAftStations(mats, resources) {
   });
   trims.instanceMatrix.needsUpdate = true;
   g.add(trims);
+
+  // Dark screen surrounds (InstancedMesh — 6)
+  const surroundGeo = new THREE.PlaneGeometry(1.2, 0.75);
+  const surrounds   = new THREE.InstancedMesh(surroundGeo, mats.consolePanel, stations.length);
+  stations.forEach((st, i) => {
+    const [x, z] = ringXZ(st.deg, R - 0.045);
+    _obj.position.set(x, 1.9, z);
+    _obj.rotation.set(0, 0, 0);
+    _obj.lookAt(0, 1.9, 0);
+    _obj.rotateY(Math.PI);
+    _obj.updateMatrix();
+    surrounds.setMatrixAt(i, _obj.matrix);
+  });
+  surrounds.instanceMatrix.needsUpdate = true;
+  g.add(surrounds);
 
   // Individual LCARS screens (each has unique title → separate material)
   stations.forEach(st => {
@@ -663,26 +702,28 @@ function buildDoors(mats) {
     labelMesh.position.set(0, 3.2, 0.2);
     dg.add(labelMesh);
 
-    // LCARS keypad beside door
-    const padCanvas    = document.createElement('canvas');
-    padCanvas.width    = 64;
-    padCanvas.height   = 128;
-    const pctx         = padCanvas.getContext('2d');
-    pctx.fillStyle     = '#000000';
-    pctx.fillRect(0, 0, 64, 128);
-    ['#FF9900', '#3399FF', '#CC99FF', '#CC6600'].forEach((c, i) => {
-      pctx.fillStyle = c;
-      pctx.beginPath();
-      pctx.roundRect(4, 4 + i * 30, 56, 24, 6);
-      pctx.fill();
+    // LCARS keypads beside door (both sides, as in TNG)
+    [-1, 1].forEach(side => {
+      const padCanvas    = document.createElement('canvas');
+      padCanvas.width    = 64;
+      padCanvas.height   = 128;
+      const pctx         = padCanvas.getContext('2d');
+      pctx.fillStyle     = '#000000';
+      pctx.fillRect(0, 0, 64, 128);
+      ['#FF9900', '#3399FF', '#CC99FF', '#CC6600'].forEach((c, i) => {
+        pctx.fillStyle = c;
+        pctx.beginPath();
+        pctx.roundRect(4, 4 + i * 30, 56, 24, 6);
+        pctx.fill();
+      });
+      const padTex  = new THREE.CanvasTexture(padCanvas);
+      const padMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.16, 0.32),
+        new THREE.MeshBasicMaterial({ map: padTex }),
+      );
+      padMesh.position.set(side * 1.15, 1.4, 0.2);
+      dg.add(padMesh);
     });
-    const padTex  = new THREE.CanvasTexture(padCanvas);
-    const padMesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.16, 0.32),
-      new THREE.MeshBasicMaterial({ map: padTex }),
-    );
-    padMesh.position.set(1.15, 1.4, 0.2);
-    dg.add(padMesh);
 
     // Position on wall
     dg.position.set(x, 0.45, z);
@@ -703,23 +744,26 @@ function buildDoors(mats) {
 function buildLighting(root, resources) {
   // Hemisphere — the TNG bridge is very bright and warm:
   //   bright warm-white sky, very dim warm-brown ground
-  const hemi = new THREE.HemisphereLight(0xFFF8F0, 0x2A1E14, 1.6);
+  const hemi = new THREE.HemisphereLight(0xFFF8F0, 0x2A1E14, 1.5);
   root.add(hemi);
 
   // Central dome point — primary key light (warm white)
-  const dome = new THREE.PointLight(0xFFF4E8, 3.8, 26);
+  const dome = new THREE.PointLight(0xFFF4E8, 0.8, 26);
+  dome.decay = 0;
   dome.position.set(0, BRIDGE.room.domeApex - 0.4, 0);
   root.add(dome);
   resources.accentLights.push(dome);
 
   // Forward fill toward viewscreen (slight cool-blue from screen)
-  const fwd = new THREE.PointLight(0xBBCCDD, 0.9, 16);
+  const fwd = new THREE.PointLight(0xBBCCDD, 0.3, 16);
+  fwd.decay = 0;
   fwd.position.set(0, 3.2, -4.5);
   root.add(fwd);
   resources.accentLights.push(fwd);
 
   // Aft fill
-  const aft = new THREE.PointLight(0xFFE8C8, 0.8, 14);
+  const aft = new THREE.PointLight(0xFFE8C8, 0.3, 14);
+  aft.decay = 0;
   aft.position.set(0, 2.8, 4.5);
   root.add(aft);
   resources.accentLights.push(aft);

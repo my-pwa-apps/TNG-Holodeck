@@ -56,24 +56,24 @@ export const RING = {
     carpetStripe:  0x5A6A84,   // blue-grey centre path
 
     // Walls (symmetric both sides)
-    wallPanel:     0x8A9098,   // lighter cool grey (horizontal panels)
+    wallPanel:     0x9AA0A8,   // lighter cool grey/blueish (horizontal panels)
     wallBlack:     0x080808,   // deep black recessed horizontal band
 
     // Bright white luminous baseboard strip
     baseboard:     0xF8F8F8,   // pure white
 
     // Structural portal frames (warm tan/sandy beige)
-    rib:           0xD4B88C,
+    rib:           0xD8C098,
 
     // Multi-rail mahogany handrail (outer wall)
-    handrail:      0x4A2616,
+    handrail:      0x6A3A26,
 
-    // Ceiling — TAN structural surface (same as ribs) + bright white light tiles
-    ceiling:       0xD4B88C,   // tan/beige — ceiling frame matches rib colour
+    // Ceiling — grey structural surface (matches walls) + bright white light tiles
+    ceiling:       0x9AA0A8,   // grey — ceiling frame matches wall colour
     ceilPanel:     0xF6F6F6,   // bright white recessed ceiling light tiles
 
     // Doors
-    doorFrame:     0xD4B88C,   // match ribs
-    doorPanel:     0x8A9098,   // match wall panels
+    doorFrame:     0xD8C098,   // match ribs
+    doorPanel:     0x9AA0A8,   // match wall panels
   },
 };

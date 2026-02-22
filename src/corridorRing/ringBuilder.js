@@ -138,37 +138,40 @@ function buildWall(mats, isInner) {
     g.add(mesh);
   }
 
+  function bulgedPanel(rBase, y0, h, mat, isInner) {
+    const pts = [];
+    const bevel = 0.04; // 4cm bevel height
+    const depth = 0.04; // 4cm depth
+    
+    // Bottom edge
+    pts.push(new THREE.Vector2(rBase, y0));
+    // Bottom bevel end
+    pts.push(new THREE.Vector2(isInner ? rBase + depth : rBase - depth, y0 + bevel));
+    // Top bevel start
+    pts.push(new THREE.Vector2(isInner ? rBase + depth : rBase - depth, y0 + h - bevel));
+    // Top edge
+    pts.push(new THREE.Vector2(rBase, y0 + h));
+
+    const geo = new THREE.LatheGeometry(pts, segments);
+    const mesh = new THREE.Mesh(geo, mat);
+    g.add(mesh);
+  }
+
   cyl(r,      0,        baseH,            baseMat);               // luminous baseboard
-  cyl(r,      baseH,    bandLow - baseH,  panelMat);              // lower panels
+  bulgedPanel(r, baseH, bandLow - baseH,  panelMat, isInner);     // lower panel (bulged)
   cyl(bandR,  bandLow,  bandHigh-bandLow, blackMat);              // black recessed band
-  cyl(r,      bandHigh, wH - bandHigh,    panelMat);              // upper panels
+  bulgedPanel(r, bandHigh, wH - bandHigh, panelMat, isInner);     // upper panel (bulged)
 
-  // Horizontal groove rings articulating wall panels
-  const grooveMat = mats.wallBlack.clone();
-  grooveMat.side  = side;
-  const groovePositions = [
-    baseH + (bandLow  - baseH)  * 0.50,   // lower section — mid
-    bandHigh + (wH    - bandHigh) * 0.50,  // upper section — mid
-  ];
-  groovePositions.forEach(grooveY => {
-    const gGeo   = new THREE.CylinderGeometry(r, r, 0.022, segments, 1, true);
-    const groove = new THREE.Mesh(gGeo, grooveMat);
-    groove.position.y = grooveY;
-    g.add(groove);
-  });
-
-  // Outer wall only: multi-rail mahogany handrail (3 horizontal rails)
-  if (!isInner) {
-    const railR   = RING.outerR - 0.06;
-    const railH   = RING.railH;
-    const spacing = 0.055;
-    for (let i = -1; i <= 1; i++) {
-      const railGeo = new THREE.TorusGeometry(railR, 0.018, 6, segments);
-      railGeo.rotateX(Math.PI / 2);
-      const rail = new THREE.Mesh(railGeo, mats.handrail);
-      rail.position.y = railH + i * spacing;
-      g.add(rail);
-    }
+  // Multi-rail mahogany handrail (3 horizontal rails) on both walls
+  const railR   = isInner ? RING.innerR + 0.06 : RING.outerR - 0.06;
+  const railH   = RING.railH;
+  const spacing = 0.055;
+  for (let i = -1; i <= 1; i++) {
+    const railGeo = new THREE.TorusGeometry(railR, 0.018, 6, segments);
+    railGeo.rotateX(Math.PI / 2);
+    const rail = new THREE.Mesh(railGeo, mats.handrail);
+    rail.position.y = railH + i * spacing;
+    g.add(rail);
   }
 
   return g;
@@ -339,6 +342,29 @@ function buildDoors(mats, doorsOut) {
     );
     lm.position.set(0, 2.58, 0.12);
     dg.add(lm);
+
+    // LCARS keypad beside door (both sides, as in TNG)
+    [-1, 1].forEach(side => {
+      const padCv    = document.createElement('canvas');
+      padCv.width    = 64;
+      padCv.height   = 128;
+      const pctx     = padCv.getContext('2d');
+      pctx.fillStyle = '#000000';
+      pctx.fillRect(0, 0, 64, 128);
+      ['#FF9900', '#3399FF', '#CC99FF', '#CC6600'].forEach((c, i) => {
+        pctx.fillStyle = c;
+        pctx.beginPath();
+        pctx.roundRect(4, 4 + i * 30, 56, 24, 6);
+        pctx.fill();
+      });
+      const padTex  = new THREE.CanvasTexture(padCv);
+      const padMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.14, 0.28),
+        new THREE.MeshBasicMaterial({ map: padTex }),
+      );
+      padMesh.position.set(side * 1.05, 1.2, 0.12);
+      dg.add(padMesh);
+    });
 
     dg.position.set(Math.sin(angle) * wallR, 0, Math.cos(angle) * wallR);
     dg.rotation.set(0, faceR, 0);

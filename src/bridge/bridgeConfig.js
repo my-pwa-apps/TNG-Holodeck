@@ -100,7 +100,8 @@ export const BRIDGE = {
     domeRib:    0xC8B880,   // tan/gold structural dome ribs
 
     // Consoles
-    console:    0x5A5A62,   // warm charcoal console body (not so navy-dark)
+    console:    0xD4C8A8,   // warm cream/tan console body (matches walls)
+    consolePanel: 0x1A1A1A, // dark charcoal for the screen surrounds
     wood:       0x7C4A28,   // rich mahogany handrail / trim
 
     // Seating — cream/ivory (NOT red)

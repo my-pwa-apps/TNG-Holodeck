@@ -2,10 +2,10 @@ import * as THREE from 'three';
 import matVert from '../shaders/materialization.vert';
 import matFrag from '../shaders/materialization.frag';
 
-const PARTICLE_COUNT_DESKTOP = 20_000;  // desktop / high-end
-const PARTICLE_COUNT_XR      = 8_000;   // Quest 3S standalone budget
-const DURATION_IN    = 2.5;  // seconds
-const DURATION_OUT   = 1.8;
+const PARTICLE_COUNT_DESKTOP = 40_000;  // desktop / high-end (hyperrealistic density)
+const PARTICLE_COUNT_XR      = 15_000;  // Quest 3S standalone budget
+const DURATION_IN    = 3.5;  // seconds (slower, more dramatic)
+const DURATION_OUT   = 2.5;
 
 /**
  * MaterializationSystem
