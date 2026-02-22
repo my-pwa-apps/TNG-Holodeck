@@ -417,6 +417,17 @@ export class HolodeckEngine {
     // reduce exposure slightly to avoid washout inside the headset.
     this.renderer.toneMappingExposure = 1.2;
 
+    // ── Reset camera local transform for clean VR tracking ──────────────
+    // PointerLockControls bakes desktop mouse-look rotation into
+    // this.camera.quaternion.  If we don't clear it, the XR world
+    // quaternion = rig × camera(stale) × headset, and "forward" on the
+    // thumbstick will be offset by however the user looked on desktop.
+    // Save → reset → restore on session end.
+    this._savedCameraPos = this.camera.position.clone();
+    this._savedCameraQuat = this.camera.quaternion.clone();
+    this.camera.position.set(0, 0, 0);
+    this.camera.quaternion.identity();
+
     // Tell MaterializationSystem to drop to XR particle budget
     if (this.matSys) this.matSys.setXRMode(true);
 
@@ -429,6 +440,10 @@ export class HolodeckEngine {
   }
 
   _onXRSessionEnd() {
+    // Restore desktop camera local transform
+    if (this._savedCameraPos)  this.camera.position.copy(this._savedCameraPos);
+    if (this._savedCameraQuat) this.camera.quaternion.copy(this._savedCameraQuat);
+
     this.renderer.shadowMap.type      = THREE.PCFSoftShadowMap;
     this.renderer.toneMappingExposure = 1.6;
     if (this.matSys) this.matSys.setXRMode(false);
