@@ -42,12 +42,12 @@ export function buildCorridorRing() {
     carpetPath:   makeMat(P.carpetStripe, { roughness: 0.95, metalness: 0 }),
 
     // Both walls share same materials; side set per-mesh
-    wallPanel:    makeMat(P.wallPanel,  { roughness: 0.55, metalness: 0.0 }),
-    wallBlack:    makeMat(P.wallBlack,  { roughness: 0.15, metalness: 0.0 }),
+    wallPanel:    makeMat(P.wallPanel,  { roughness: 0.45, metalness: 0.1 }),
+    wallBlack:    makeMat(P.wallBlack,  { roughness: 0.15, metalness: 0.6 }),
     baseboard: new THREE.MeshStandardMaterial({
       color: new THREE.Color(P.baseboard),
       emissive: new THREE.Color(P.baseboard),
-      emissiveIntensity: 3.0, roughness: 0.35,
+      emissiveIntensity: 2.0, roughness: 0.35,
     }),
 
     rib:      makeMat(P.rib,      { roughness: 0.65, metalness: 0.05 }),
@@ -57,7 +57,7 @@ export function buildCorridorRing() {
     ceilPanel: new THREE.MeshStandardMaterial({
       color: new THREE.Color(P.ceilPanel),
       emissive: new THREE.Color(P.ceilPanel),
-      emissiveIntensity: 2.8, roughness: 0.40,
+      emissiveIntensity: 1.8, roughness: 0.40,
     }),
 
     doorFrame: makeMat(P.doorFrame, { roughness: 0.65, metalness: 0.05 }),
@@ -147,8 +147,7 @@ function buildWall(mats, isInner) {
   const grooveMat = mats.wallBlack.clone();
   grooveMat.side  = side;
   const groovePositions = [
-    baseH + (bandLow  - baseH)  * 0.33,   // lower section — 1/3
-    baseH + (bandLow  - baseH)  * 0.67,   // lower section — 2/3
+    baseH + (bandLow  - baseH)  * 0.50,   // lower section — mid
     bandHigh + (wH    - bandHigh) * 0.50,  // upper section — mid
   ];
   groovePositions.forEach(grooveY => {
@@ -365,17 +364,17 @@ function buildLighting(root, resources) {
   //   2. PointLights with decay=0 (constant; distance = hard cutoff) add the
   //      warm baseboard glow tint and cool ceiling tint without washing out.
 
-  const hemi = new THREE.HemisphereLight(0x2A3550, 0x0C0810, 1.2);
+  const hemi = new THREE.HemisphereLight(0xEEF2FF, 0x2A2830, 1.10);
   root.add(hemi);
 
   // Warm baseboard fill — flat falloff, reaches both walls
-  const baseLight = new THREE.PointLight(0xF8F4E8, 1.4, 25, 0);   // decay=0
+  const baseLight = new THREE.PointLight(0xF8F4E8, 1.2, 25, 0);   // decay=0
   baseLight.position.set(0, 0.35, 0);
   root.add(baseLight);
   resources.accentLights.push(baseLight);
 
   // Cool ceiling fill — flat falloff
-  const ceilLight = new THREE.PointLight(0xEEF2FF, 1.2, 25, 0);   // decay=0
+  const ceilLight = new THREE.PointLight(0xEEF2FF, 1.0, 25, 0);   // decay=0
   ceilLight.position.set(0, RING.wallHeight * 0.95, 0);
   root.add(ceilLight);
   resources.accentLights.push(ceilLight);

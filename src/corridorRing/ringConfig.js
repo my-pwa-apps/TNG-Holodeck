@@ -52,28 +52,28 @@ export const RING = {
   // ── Colour palette (matched to reference render) ──────────────────────
   palette: {
     // Floor — blue-grey centre, pink/mauve edges
-    carpetMain:    0xA08888,   // pink/mauve side panels (slightly deeper)
-    carpetStripe:  0x6E7E94,   // blue-grey centre path (slightly deeper)
+    carpetMain:    0x9A8A8A,   // pink/mauve side panels
+    carpetStripe:  0x5A6A84,   // blue-grey centre path
 
-    // Walls (symmetric both sides) — dark slate grey, absorbs light
-    wallPanel:     0x4C5058,   // dark cool slate grey (horizontal panels)
-    wallBlack:     0x060608,   // near-black recessed horizontal band
+    // Walls (symmetric both sides)
+    wallPanel:     0x8A9098,   // lighter cool grey (horizontal panels)
+    wallBlack:     0x080808,   // deep black recessed horizontal band
 
     // Bright white luminous baseboard strip
     baseboard:     0xF8F8F8,   // pure white
 
     // Structural portal frames (warm tan/sandy beige)
-    rib:           0xC4B48C,
+    rib:           0xD4B88C,
 
     // Multi-rail mahogany handrail (outer wall)
-    handrail:      0x3A1606,
+    handrail:      0x4A2616,
 
     // Ceiling — TAN structural surface (same as ribs) + bright white light tiles
-    ceiling:       0xC4B48C,   // tan/beige — ceiling frame matches rib colour
+    ceiling:       0xD4B88C,   // tan/beige — ceiling frame matches rib colour
     ceilPanel:     0xF6F6F6,   // bright white recessed ceiling light tiles
 
     // Doors
-    doorFrame:     0xC4B48C,   // match ribs
-    doorPanel:     0x6A6E74,   // dark grey sliding panels
+    doorFrame:     0xD4B88C,   // match ribs
+    doorPanel:     0x8A9098,   // match wall panels
   },
 };
