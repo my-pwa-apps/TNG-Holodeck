@@ -346,12 +346,14 @@ export class HolodeckEngine {
   }
 
   _onPhaserFire(controller) {
-    // Delegate to current scene if it supports phaser interactions
-    if (this._currentSceneModule?.onPhaserFire) {
-      this._currentSceneModule.onPhaserFire(controller);
+    // Right trigger → dematerialize everything and return to empty holodeck grid
+    const store = useSceneStore.getState();
+    if (store.currentScene !== 'grid') {
+      this.audio.play('computer_ack');
+      store.requestScene('grid');
       return;
     }
-    // Default: play audio phaser burst
+    // Already on grid — just play an acknowledgement
     if (this.audio && this.audio.play) {
       this.audio.play('computer_ack');
     }

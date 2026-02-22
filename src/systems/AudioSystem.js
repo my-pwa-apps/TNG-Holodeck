@@ -34,6 +34,7 @@ export class AudioSystem {
       case 'holodeck_door':    this._holodeckDoor(); break;
       case 'computer_ack':     this._computerAck(); break;
       case 'lcars_button':     this._lcarsButton(); break;
+      case 'door_slide':       this._doorSlide(); break;
       default: break;
     }
   }
@@ -176,6 +177,41 @@ export class AudioSystem {
 
     const noise = this._makeNoise(dur);
     noise.connect(lpf);
+  }
+
+  /** TNG corridor door pneumatic slide — short hiss with a mid-frequency thud */
+  _doorSlide() {
+    const dur = 0.8;
+    const t   = this._ctx.currentTime;
+
+    // Pneumatic hiss: bandpass-filtered noise, fast attack
+    const hissEnv = this._ctx.createGain();
+    hissEnv.connect(this._masterGain);
+    hissEnv.gain.setValueAtTime(0, t);
+    hissEnv.gain.linearRampToValueAtTime(0.18, t + 0.04);
+    hissEnv.gain.setTargetAtTime(0.06, t + 0.15, 0.12);
+    hissEnv.gain.setTargetAtTime(0, t + dur - 0.15, 0.08);
+
+    const bpf = this._ctx.createBiquadFilter();
+    bpf.type = 'bandpass'; bpf.frequency.value = 2200; bpf.Q.value = 1.8;
+    bpf.connect(hissEnv);
+
+    const noise = this._makeNoise(dur);
+    noise.connect(bpf);
+
+    // Mechanical thud: low sine burst at start
+    const thudOsc = this._ctx.createOscillator();
+    thudOsc.type = 'sine';
+    thudOsc.frequency.setValueAtTime(90, t);
+    thudOsc.frequency.exponentialRampToValueAtTime(40, t + 0.12);
+    const thudEnv = this._ctx.createGain();
+    thudEnv.connect(this._masterGain);
+    thudEnv.gain.setValueAtTime(0, t);
+    thudEnv.gain.linearRampToValueAtTime(0.22, t + 0.02);
+    thudEnv.gain.setTargetAtTime(0, t + 0.06, 0.04);
+    thudOsc.connect(thudEnv);
+    thudOsc.start(t);
+    thudOsc.stop(t + 0.25);
   }
 
   /** Two-tone TNG-style computer acknowledgment chime */

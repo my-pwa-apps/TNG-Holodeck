@@ -31,6 +31,9 @@ export class CorridorScene {
 
     // Pre-allocated scratch vector (avoids per-frame GC)
     this._camWorldPos = new THREE.Vector3();
+
+    // Track which doors played their sound so we fire once per open/close
+    this._doorSoundPlayed = [];
   }
 
   // ── Load ──────────────────────────────────────────────────────────────
@@ -110,11 +113,23 @@ export class CorridorScene {
       cam.getWorldPosition(this._camWorldPos);
       const cp = this._camWorldPos;
 
-      for (const door of this._res.doors) {
+      for (let i = 0; i < this._res.doors.length; i++) {
+        const door = this._res.doors[i];
         const dx   = Math.sin(door.theta) * door.wallR;
         const dz   = Math.cos(door.theta) * door.wallR;
         const dist = Math.sqrt((cp.x - dx) ** 2 + (cp.z - dz) ** 2);
+        const wasOpen = door.open;
         door.open  = dist < 2.5;
+
+        // Play door slide sound on state change (once per transition)
+        if (door.open !== wasOpen) {
+          if (!this._doorSoundPlayed[i]) {
+            this._audio.play?.('door_slide');
+            this._doorSoundPlayed[i] = true;
+          }
+        } else {
+          this._doorSoundPlayed[i] = false;
+        }
 
         const target = door.open ? 1 : 0;
         door.t += (target - door.t) * 6 * dt;

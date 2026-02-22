@@ -658,29 +658,29 @@ function buildViewscreen(mats, starfield) {
 function buildDoors(mats) {
   const g     = new THREE.Group();
   const doors = BRIDGE.doors;
-  const R     = BRIDGE.room.radius - 0.15;
+  const R     = BRIDGE.room.radius - 0.10;
 
   doors.forEach(door => {
     const dg = new THREE.Group();
     const [x, z] = ringXZ(door.deg, R);
 
-    // Frame
+    // Frame — starts at floor, full height
     const frame = new THREE.Mesh(
-      new THREE.BoxGeometry(1.9, 2.7, 0.35),
+      new THREE.BoxGeometry(1.9, 2.7, 0.30),
       mats.doorFrame,
     );
-    frame.position.y = 1.8;
+    frame.position.y = 1.35;
     dg.add(frame);
 
-    // Left panel
+    // Left panel (slides behind wall, negative Z = wall side)
     const panelGeo = new THREE.BoxGeometry(0.82, 2.5, 0.07);
     const left = new THREE.Mesh(panelGeo, mats.doorPanel);
-    left.position.set(-0.44, 1.75, 0.16);
+    left.position.set(-0.44, 1.30, 0.10);
     dg.add(left);
 
     // Right panel
     const right = new THREE.Mesh(panelGeo.clone(), mats.doorPanel);
-    right.position.set(0.44, 1.75, 0.16);
+    right.position.set(0.44, 1.30, 0.10);
     dg.add(right);
 
     // Label above door
@@ -699,7 +699,7 @@ function buildDoors(mats) {
       new THREE.PlaneGeometry(1.3, 0.22),
       new THREE.MeshBasicMaterial({ map: labelTex }),
     );
-    labelMesh.position.set(0, 3.2, 0.2);
+    labelMesh.position.set(0, 2.85, 0.16);
     dg.add(labelMesh);
 
     // LCARS keypads beside door (both sides, as in TNG)
@@ -721,15 +721,15 @@ function buildDoors(mats) {
         new THREE.PlaneGeometry(0.16, 0.32),
         new THREE.MeshBasicMaterial({ map: padTex }),
       );
-      padMesh.position.set(side * 1.15, 1.4, 0.2);
+      padMesh.position.set(side * 1.15, 1.2, 0.16);
       dg.add(padMesh);
     });
 
-    // Position on wall
-    dg.position.set(x, 0.45, z);
-    // Face inward
-    dg.lookAt(0, 0.45, 0);
-    dg.rotateY(Math.PI);
+    // Position on wall at floor level
+    dg.position.set(x, 0, z);
+    // Face inward — lookAt makes +Z point toward center for Object3D,
+    // so panels/labels/pads at positive Z face the bridge interior.
+    dg.lookAt(0, 0, 0);
 
     g.add(dg);
   });

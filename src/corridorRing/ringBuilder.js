@@ -317,13 +317,13 @@ function buildDoors(mats, doorsOut) {
     frame.position.y = 1.21;
     dg.add(frame);
 
-    // Left + Right sliding panels
+    // Left + Right sliding panels — sit behind the wall surface (negative Z)
     const panGeo = new THREE.BoxGeometry(0.74, 2.20, 0.08);
     const lp = new THREE.Mesh(panGeo, mats.doorPanel);
-    lp.position.set(-0.40, 1.10, 0.10);
+    lp.position.set(-0.40, 1.10, -0.04);
     dg.add(lp);
     const rp = new THREE.Mesh(panGeo.clone(), mats.doorPanel);
-    rp.position.set( 0.40, 1.10, 0.10);
+    rp.position.set( 0.40, 1.10, -0.04);
     dg.add(rp);
 
     // Label canvas above door
@@ -340,10 +340,11 @@ function buildDoors(mats, doorsOut) {
       new THREE.PlaneGeometry(1.1, 0.20),
       new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv) }),
     );
-    lm.position.set(0, 2.58, 0.12);
+    lm.position.set(0, 2.58, 0.01);
     dg.add(lm);
 
     // LCARS keypad beside door (both sides, as in TNG)
+    // Flush against the wall surface (z ≈ 0.01)
     [-1, 1].forEach(side => {
       const padCv    = document.createElement('canvas');
       padCv.width    = 64;
@@ -362,7 +363,7 @@ function buildDoors(mats, doorsOut) {
         new THREE.PlaneGeometry(0.14, 0.28),
         new THREE.MeshBasicMaterial({ map: padTex }),
       );
-      padMesh.position.set(side * 1.05, 1.2, 0.12);
+      padMesh.position.set(side * 1.05, 1.2, 0.01);
       dg.add(padMesh);
     });
 
