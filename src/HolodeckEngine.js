@@ -230,7 +230,7 @@ export class HolodeckEngine {
    *   Left  Grip           → Toggle Arch
    *   Left  Menu           → Toggle Voice Control
    *   Left  Thumbstick btn → Freeze / Resume program
-   *   Right A              → (unassigned)
+   *   Right A              → Interact with door keypad (point at LCARS pad, press A)
    *   Right B              → (unassigned)
    *   Right Grip           → Mute / Unmute audio (cycle 0 ↔ 0.7)
    *   Right Menu           → Red Alert
@@ -280,7 +280,10 @@ export class HolodeckEngine {
 
         // ── Right controller ─────────────────────────────────
         if (hand === 'right') {
-          if (idx === 3) {   // Menu/Oculus → Red Alert
+          if (idx === 0) {   // A → Interact with door keypad (point controller at pad, press A)
+            const rightCtrl = this._controllers?.[1]?.ctrl;
+            if (rightCtrl) this._onInteractFromController(rightCtrl);
+          } else if (idx === 3) {   // Menu/Oculus → Red Alert
             this._currentSceneModule?.activateRedAlert?.();
             this.audio.play('computer_ack');
           } else if (idx === 4) {   // Thumbstick click → Grid (end program)
@@ -514,25 +517,12 @@ export class HolodeckEngine {
 
   // ── Grab & release ─────────────────────────────────────────────────────
   _onGrab(controller) {
-    const raycaster  = this._grabRaycaster;
+    const raycaster = this._grabRaycaster;
     raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-
-    // Extract rotation properly
     const tempQuat = new THREE.Quaternion().setFromRotationMatrix(controller.matrixWorld);
     raycaster.ray.direction.set(0, 0, -1).applyQuaternion(tempQuat);
-    raycaster.far = 4.0;   // only interact within arm's reach
-
-    // First check for door pads
-    const pads = [];
-    this.scene.traverse(o => { if (o.userData.doorPad) pads.push(o); });
-    const padHits = raycaster.intersectObjects(pads, false);
-    if (padHits.length) {
-      this._fireDoorInteract(padHits[0].object);
-      return;
-    }
-
-    // Then try to grab interactables
     raycaster.far = Infinity;
+
     const interactables = [];
     this.scene.traverse(o => { if (o.userData.interactable) interactables.push(o); });
     const hits = raycaster.intersectObjects(interactables, true);
@@ -542,7 +532,21 @@ export class HolodeckEngine {
     }
   }
 
-  // ── Interact (desktop camera ray or XR pad hit) ────────────────────────
+  // ── Interact from XR controller (A button) ─────────────────────────────
+  _onInteractFromController(ctrl) {
+    const ray = this._interactRay;
+    ray.ray.origin.setFromMatrixPosition(ctrl.matrixWorld);
+    const tempQuat = new THREE.Quaternion().setFromRotationMatrix(ctrl.matrixWorld);
+    ray.ray.direction.set(0, 0, -1).applyQuaternion(tempQuat);
+    ray.far = 5.0;
+
+    const pads = [];
+    this.scene.traverse(o => { if (o.userData.doorPad) pads.push(o); });
+    const hits = ray.intersectObjects(pads, false);
+    if (hits.length) this._fireDoorInteract(hits[0].object);
+  }
+
+  // ── Interact (desktop camera ray) ────────────────────────────────────────
   _onInteract(camera) {
     const ray = this._interactRay;
     ray.setFromCamera({ x: 0, y: 0 }, camera);
